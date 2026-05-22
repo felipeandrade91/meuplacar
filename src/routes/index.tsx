@@ -14,6 +14,7 @@ interface Match {
 }
 
 const STORAGE_KEY = "meu-placar-v1";
+const QUINTA_LOCATION = "Quadra Catão Roxo";
 
 function buildSeed(): Match[] {
   const matches: Match[] = [];
@@ -38,6 +39,7 @@ function buildSeed(): Match[] {
       id: `seed-${i}`,
       date: d.toISOString().slice(0, 10),
       type: "quinta",
+      location: QUINTA_LOCATION,
       goals: distribution[i].g,
       assists: distribution[i].a,
     });
@@ -71,7 +73,7 @@ function Index() {
   const [form, setForm] = useState({
     date: todayStr,
     type: "quinta" as MatchType,
-    location: "",
+    location: QUINTA_LOCATION,
     goals: 0,
     assists: 0,
   });
@@ -114,12 +116,27 @@ function Index() {
       assists: Number(form.assists) || 0,
     };
     setMatches((prev) => [m, ...prev]);
-    setForm({ date: todayStr, type: "quinta", location: "", goals: 0, assists: 0 });
+    setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0 });
   }
 
   function removeMatch(id: string) {
     setMatches((prev) => prev.filter((m) => m.id !== id));
   }
+
+  function updateStat(id: string, field: "goals" | "assists", value: number) {
+    setMatches((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, [field]: Math.max(0, value) } : m)),
+    );
+  }
+
+  const chartData = useMemo(
+    () =>
+      [...matches]
+        .filter((m) => m.type === "quinta")
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((m) => ({ date: m.date, goals: m.goals, assists: m.assists })),
+    [matches],
+  );
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -141,6 +158,16 @@ function Index() {
           <StatCard label="G+A / jogo" value={stats.avg} />
         </section>
 
+        {chartData.length > 1 && (
+          <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+            <h2 className="mb-1 text-lg font-semibold">Evolução no Fute de Quinta</h2>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Gols e assistências por semana
+            </p>
+            <LineChart data={chartData} />
+          </section>
+        )}
+
         <section className="mb-8 rounded-2xl border border-border bg-card p-5">
           <h2 className="mb-4 text-lg font-semibold">Registrar jogo</h2>
           <form onSubmit={addMatch} className="grid gap-4 sm:grid-cols-2">
@@ -158,10 +185,17 @@ function Index() {
               <span className="text-muted-foreground">Tipo</span>
               <select
                 value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value as MatchType })}
+                onChange={(e) => {
+                  const type = e.target.value as MatchType;
+                  setForm({
+                    ...form,
+                    type,
+                    location: type === "quinta" ? QUINTA_LOCATION : "",
+                  });
+                }}
                 className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary"
               >
-                <option value="quinta">Quinta-feira</option>
+                <option value="quinta">Fute de Quinta</option>
                 <option value="pelada">Pelada eventual</option>
               </select>
             </label>
@@ -221,7 +255,7 @@ function Index() {
                       <p className="truncate text-sm font-medium">
                         {formatDate(m.date)}
                         <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
-                          {m.type === "quinta" ? "Quinta" : "Pelada"}
+                        {m.type === "quinta" ? "Fute de Quinta" : "Pelada"}
                         </span>
                       </p>
                       {m.location && (
@@ -229,13 +263,27 @@ function Index() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="inline-flex items-center gap-1 text-primary">
-                      <Target className="h-4 w-4" /> {m.goals}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-accent">
-                      <Handshake className="h-4 w-4" /> {m.assists}
-                    </span>
+                  <div className="flex items-center gap-3 text-sm">
+                    <label className="inline-flex items-center gap-1 text-primary">
+                      <Target className="h-4 w-4" aria-label="Gols" />
+                      <input
+                        type="number"
+                        min={0}
+                        value={m.goals}
+                        onChange={(e) => updateStat(m.id, "goals", Number(e.target.value))}
+                        className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary"
+                      />
+                    </label>
+                    <label className="inline-flex items-center gap-1 text-accent">
+                      <Handshake className="h-4 w-4" aria-label="Assistências" />
+                      <input
+                        type="number"
+                        min={0}
+                        value={m.assists}
+                        onChange={(e) => updateStat(m.id, "assists", Number(e.target.value))}
+                        className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary"
+                      />
+                    </label>
                     <button
                       onClick={() => removeMatch(m.id)}
                       aria-label="Remover"
@@ -276,4 +324,122 @@ function StatCard({
 function formatDate(iso: string) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+function shortDate(iso: string) {
+  const [, m, d] = iso.split("-");
+  return `${d}/${m}`;
+}
+
+function LineChart({ data }: { data: { date: string; goals: number; assists: number }[] }) {
+  const width = 600;
+  const height = 240;
+  const padding = { top: 16, right: 16, bottom: 28, left: 28 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+
+  const maxY = Math.max(3, ...data.flatMap((d) => [d.goals, d.assists]));
+  const stepX = data.length > 1 ? innerW / (data.length - 1) : 0;
+
+  const pointsFor = (key: "goals" | "assists") =>
+    data.map((d, i) => ({
+      x: padding.left + i * stepX,
+      y: padding.top + innerH - (d[key] / maxY) * innerH,
+    }));
+
+  const goalsPts = pointsFor("goals");
+  const assistsPts = pointsFor("assists");
+
+  const toPath = (pts: { x: number; y: number }[]) =>
+    pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+
+  const yTicks = Array.from({ length: maxY + 1 }, (_, i) => i);
+
+  return (
+    <div className="w-full">
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-full bg-primary" /> Gols
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-full bg-accent" /> Assistências
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full"
+        role="img"
+        aria-label="Gráfico de gols e assistências por semana"
+      >
+        {yTicks.map((t) => {
+          const y = padding.top + innerH - (t / maxY) * innerH;
+          return (
+            <g key={t}>
+              <line
+                x1={padding.left}
+                x2={width - padding.right}
+                y1={y}
+                y2={y}
+                className="stroke-border"
+                strokeDasharray="3 4"
+                strokeWidth={1}
+              />
+              <text
+                x={padding.left - 6}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-muted-foreground"
+                style={{ fontSize: 10 }}
+              >
+                {t}
+              </text>
+            </g>
+          );
+        })}
+        {data.length > 0 && (
+          <>
+            <text
+              x={padding.left}
+              y={height - 8}
+              className="fill-muted-foreground"
+              style={{ fontSize: 10 }}
+            >
+              {shortDate(data[0].date)}
+            </text>
+            <text
+              x={width - padding.right}
+              y={height - 8}
+              textAnchor="end"
+              className="fill-muted-foreground"
+              style={{ fontSize: 10 }}
+            >
+              {shortDate(data[data.length - 1].date)}
+            </text>
+          </>
+        )}
+        <path
+          d={toPath(goalsPts)}
+          fill="none"
+          className="stroke-primary"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        <path
+          d={toPath(assistsPts)}
+          fill="none"
+          className="stroke-accent"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {goalsPts.map((p, i) => (
+          <circle key={`g-${i}`} cx={p.x} cy={p.y} r={3} className="fill-primary" />
+        ))}
+        {assistsPts.map((p, i) => (
+          <circle key={`a-${i}`} cx={p.x} cy={p.y} r={3} className="fill-accent" />
+        ))}
+      </svg>
+    </div>
+  );
 }
