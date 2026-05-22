@@ -185,10 +185,17 @@ function Index() {
               <span className="text-muted-foreground">Tipo</span>
               <select
                 value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value as MatchType })}
+                onChange={(e) => {
+                  const type = e.target.value as MatchType;
+                  setForm({
+                    ...form,
+                    type,
+                    location: type === "quinta" ? QUINTA_LOCATION : "",
+                  });
+                }}
                 className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary"
               >
-                <option value="quinta">Quinta-feira</option>
+                <option value="quinta">Fute de Quinta</option>
                 <option value="pelada">Pelada eventual</option>
               </select>
             </label>
@@ -248,7 +255,7 @@ function Index() {
                       <p className="truncate text-sm font-medium">
                         {formatDate(m.date)}
                         <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
-                          {m.type === "quinta" ? "Quinta" : "Pelada"}
+                        {m.type === "quinta" ? "Fute de Quinta" : "Pelada"}
                         </span>
                       </p>
                       {m.location && (
@@ -256,13 +263,27 @@ function Index() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="inline-flex items-center gap-1 text-primary">
-                      <Target className="h-4 w-4" /> {m.goals}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-accent">
-                      <Handshake className="h-4 w-4" /> {m.assists}
-                    </span>
+                  <div className="flex items-center gap-3 text-sm">
+                    <label className="inline-flex items-center gap-1 text-primary">
+                      <Target className="h-4 w-4" aria-label="Gols" />
+                      <input
+                        type="number"
+                        min={0}
+                        value={m.goals}
+                        onChange={(e) => updateStat(m.id, "goals", Number(e.target.value))}
+                        className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary"
+                      />
+                    </label>
+                    <label className="inline-flex items-center gap-1 text-accent">
+                      <Handshake className="h-4 w-4" aria-label="Assistências" />
+                      <input
+                        type="number"
+                        min={0}
+                        value={m.assists}
+                        onChange={(e) => updateStat(m.id, "assists", Number(e.target.value))}
+                        className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary"
+                      />
+                    </label>
                     <button
                       onClick={() => removeMatch(m.id)}
                       aria-label="Remover"
