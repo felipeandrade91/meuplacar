@@ -79,6 +79,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Meu Placar — Gols e Assistências" },
+      { name: "twitter:description", content: "Registre seus gols e assistências do futebol semanal e das peladas." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a7440e95-242e-4a68-bd83-3f9e2337c852" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a7440e95-242e-4a68-bd83-3f9e2337c852" },
     ],
     links: [
       {
