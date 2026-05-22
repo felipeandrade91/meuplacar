@@ -325,3 +325,121 @@ function formatDate(iso: string) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
+
+function shortDate(iso: string) {
+  const [, m, d] = iso.split("-");
+  return `${d}/${m}`;
+}
+
+function LineChart({ data }: { data: { date: string; goals: number; assists: number }[] }) {
+  const width = 600;
+  const height = 240;
+  const padding = { top: 16, right: 16, bottom: 28, left: 28 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+
+  const maxY = Math.max(3, ...data.flatMap((d) => [d.goals, d.assists]));
+  const stepX = data.length > 1 ? innerW / (data.length - 1) : 0;
+
+  const pointsFor = (key: "goals" | "assists") =>
+    data.map((d, i) => ({
+      x: padding.left + i * stepX,
+      y: padding.top + innerH - (d[key] / maxY) * innerH,
+    }));
+
+  const goalsPts = pointsFor("goals");
+  const assistsPts = pointsFor("assists");
+
+  const toPath = (pts: { x: number; y: number }[]) =>
+    pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+
+  const yTicks = Array.from({ length: maxY + 1 }, (_, i) => i);
+
+  return (
+    <div className="w-full">
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-full bg-primary" /> Gols
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-full bg-accent" /> Assistências
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full"
+        role="img"
+        aria-label="Gráfico de gols e assistências por semana"
+      >
+        {yTicks.map((t) => {
+          const y = padding.top + innerH - (t / maxY) * innerH;
+          return (
+            <g key={t}>
+              <line
+                x1={padding.left}
+                x2={width - padding.right}
+                y1={y}
+                y2={y}
+                className="stroke-border"
+                strokeDasharray="3 4"
+                strokeWidth={1}
+              />
+              <text
+                x={padding.left - 6}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-muted-foreground"
+                style={{ fontSize: 10 }}
+              >
+                {t}
+              </text>
+            </g>
+          );
+        })}
+        {data.length > 0 && (
+          <>
+            <text
+              x={padding.left}
+              y={height - 8}
+              className="fill-muted-foreground"
+              style={{ fontSize: 10 }}
+            >
+              {shortDate(data[0].date)}
+            </text>
+            <text
+              x={width - padding.right}
+              y={height - 8}
+              textAnchor="end"
+              className="fill-muted-foreground"
+              style={{ fontSize: 10 }}
+            >
+              {shortDate(data[data.length - 1].date)}
+            </text>
+          </>
+        )}
+        <path
+          d={toPath(goalsPts)}
+          fill="none"
+          className="stroke-primary"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        <path
+          d={toPath(assistsPts)}
+          fill="none"
+          className="stroke-accent"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {goalsPts.map((p, i) => (
+          <circle key={`g-${i}`} cx={p.x} cy={p.y} r={3} className="fill-primary" />
+        ))}
+        {assistsPts.map((p, i) => (
+          <circle key={`a-${i}`} cx={p.x} cy={p.y} r={3} className="fill-accent" />
+        ))}
+      </svg>
+    </div>
+  );
+}
