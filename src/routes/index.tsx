@@ -14,6 +14,7 @@ interface Match {
 }
 
 const STORAGE_KEY = "meu-placar-v1";
+const QUINTA_LOCATION = "Quadra Catão Roxo";
 
 function buildSeed(): Match[] {
   const matches: Match[] = [];
@@ -38,6 +39,7 @@ function buildSeed(): Match[] {
       id: `seed-${i}`,
       date: d.toISOString().slice(0, 10),
       type: "quinta",
+      location: QUINTA_LOCATION,
       goals: distribution[i].g,
       assists: distribution[i].a,
     });
@@ -71,7 +73,7 @@ function Index() {
   const [form, setForm] = useState({
     date: todayStr,
     type: "quinta" as MatchType,
-    location: "",
+    location: QUINTA_LOCATION,
     goals: 0,
     assists: 0,
   });
@@ -114,12 +116,27 @@ function Index() {
       assists: Number(form.assists) || 0,
     };
     setMatches((prev) => [m, ...prev]);
-    setForm({ date: todayStr, type: "quinta", location: "", goals: 0, assists: 0 });
+    setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0 });
   }
 
   function removeMatch(id: string) {
     setMatches((prev) => prev.filter((m) => m.id !== id));
   }
+
+  function updateStat(id: string, field: "goals" | "assists", value: number) {
+    setMatches((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, [field]: Math.max(0, value) } : m)),
+    );
+  }
+
+  const chartData = useMemo(
+    () =>
+      [...matches]
+        .filter((m) => m.type === "quinta")
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((m) => ({ date: m.date, goals: m.goals, assists: m.assists })),
+    [matches],
+  );
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -140,6 +157,16 @@ function Index() {
           <StatCard label="Jogos" value={stats.games} />
           <StatCard label="G+A / jogo" value={stats.avg} />
         </section>
+
+        {chartData.length > 1 && (
+          <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+            <h2 className="mb-1 text-lg font-semibold">Evolução no Fute de Quinta</h2>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Gols e assistências por semana
+            </p>
+            <LineChart data={chartData} />
+          </section>
+        )}
 
         <section className="mb-8 rounded-2xl border border-border bg-card p-5">
           <h2 className="mb-4 text-lg font-semibold">Registrar jogo</h2>
