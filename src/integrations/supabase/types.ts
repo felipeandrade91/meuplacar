@@ -23,6 +23,7 @@ export type Database = {
           id: string
           location: string | null
           type: string
+          user_id: string | null
         }
         Insert: {
           assists?: number
@@ -32,6 +33,7 @@ export type Database = {
           id?: string
           location?: string | null
           type: string
+          user_id?: string | null
         }
         Update: {
           assists?: number
@@ -41,6 +43,7 @@ export type Database = {
           id?: string
           location?: string | null
           type?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -49,7 +52,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_unowned_matches: { Args: never; Returns: number }
     }
     Enums: {
       [_ in never]: never
