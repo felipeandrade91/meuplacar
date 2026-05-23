@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Trophy, Plus, Trash2, Calendar, Target, Handshake } from "lucide-react";
+import { Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 type MatchType = "quinta" | "pelada";
 
@@ -13,54 +14,8 @@ interface Match {
   assists: number;
 }
 
-const STORAGE_KEY = "meu-placar-v1";
 const QUINTA_LOCATION = "Quadra Catão Roxo";
-
-function buildSeed(): Match[] {
-  const matches: Match[] = [];
-  const today = new Date();
-  const day = today.getDay();
-  const diffToThu = (day - 4 + 7) % 7;
-  const lastThu = new Date(today);
-  lastThu.setDate(today.getDate() - diffToThu);
-
-  const distribution = [
-    { g: 2, a: 1 }, { g: 1, a: 2 }, { g: 1, a: 1 }, { g: 0, a: 1 },
-    { g: 2, a: 0 }, { g: 1, a: 1 }, { g: 3, a: 1 }, { g: 0, a: 2 },
-    { g: 1, a: 0 }, { g: 2, a: 1 }, { g: 1, a: 1 }, { g: 0, a: 1 },
-    { g: 1, a: 0 }, { g: 2, a: 1 }, { g: 1, a: 0 }, { g: 1, a: 1 },
-    { g: 1, a: 1 },
-  ];
-
-  for (let i = 0; i < 17; i++) {
-    const d = new Date(lastThu);
-    d.setDate(lastThu.getDate() - i * 7);
-    matches.push({
-      id: `seed-${i}`,
-      date: d.toISOString().slice(0, 10),
-      type: "quinta",
-      location: QUINTA_LOCATION,
-      goals: distribution[i].g,
-      assists: distribution[i].a,
-    });
-  }
-  return matches;
-}
-
-function loadMatches(): Match[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      const seed = buildSeed();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
-      return seed;
-    }
-    return JSON.parse(raw) as Match[];
-  } catch {
-    return [];
-  }
-}
+const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -68,7 +23,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const todayStr = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     date: todayStr,
@@ -79,13 +34,29 @@ function Index() {
   });
 
   useEffect(() => {
-    setMatches(loadMatches());
-    setMounted(true);
+    let active = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from("matches")
+        .select("*")
+        .order("date", { ascending: false });
+      if (!active) return;
+      if (!error && data) {
+        setMatches(
+          data.map((m) => ({
+            id: m.id,
+            date: m.date,
+            type: m.type as MatchType,
+            location: m.location ?? undefined,
+            goals: m.goals,
+            assists: m.assists,
+          })),
+        );
+      }
+      setLoading(false);
+    })();
+    return () => { active = false; };
   }, []);
-
-  useEffect(() => {
-    if (mounted) localStorage.setItem(STORAGE_KEY, JSON.stringify(matches));
-  }, [matches, mounted]);
 
   const stats = useMemo(() => {
     const goals = matches.reduce((s, m) => s + m.goals, 0);
@@ -96,7 +67,10 @@ function Index() {
       goals,
       assists,
       games,
-      avg: games ? (ga / games).toFixed(2) : "0.00",
+      ga,
+      gPerGame: games ? (goals / games).toFixed(2) : "0.00",
+      aPerGame: games ? (assists / games).toFixed(2) : "0.00",
+      gaPerGame: games ? (ga / games).toFixed(2) : "0.00",
     };
   }, [matches]);
 
@@ -105,28 +79,49 @@ function Index() {
     [matches],
   );
 
-  function addMatch(e: React.FormEvent) {
+  async function addMatch(e: React.FormEvent) {
     e.preventDefault();
-    const m: Match = {
-      id: crypto.randomUUID(),
+    const payload = {
       date: form.date,
       type: form.type,
-      location: form.location || undefined,
+      location: form.location || null,
       goals: Number(form.goals) || 0,
       assists: Number(form.assists) || 0,
     };
-    setMatches((prev) => [m, ...prev]);
-    setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0 });
+    const { data, error } = await supabase
+      .from("matches")
+      .insert(payload)
+      .select()
+      .single();
+    if (!error && data) {
+      setMatches((prev) => [
+        {
+          id: data.id,
+          date: data.date,
+          type: data.type as MatchType,
+          location: data.location ?? undefined,
+          goals: data.goals,
+          assists: data.assists,
+        },
+        ...prev,
+      ]);
+      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0 });
+    }
   }
 
-  function removeMatch(id: string) {
+  async function removeMatch(id: string) {
+    const prev = matches;
     setMatches((prev) => prev.filter((m) => m.id !== id));
+    const { error } = await supabase.from("matches").delete().eq("id", id);
+    if (error) setMatches(prev);
   }
 
   function updateStat(id: string, field: "goals" | "assists", value: number) {
+    const safe = Math.max(0, value);
     setMatches((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, [field]: Math.max(0, value) } : m)),
+      prev.map((m) => (m.id === id ? { ...m, [field]: safe } : m)),
     );
+    void supabase.from("matches").update({ [field]: safe }).eq("id", id);
   }
 
   const chartData = useMemo(
@@ -137,6 +132,30 @@ function Index() {
         .map((m) => ({ date: m.date, goals: m.goals, assists: m.assists })),
     [matches],
   );
+
+  const monthly = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; goals: number; assists: number; games: number }>();
+    for (const m of matches) {
+      const [y, mo] = m.date.split("-");
+      const key = `${y}-${mo}`;
+      const label = `${MONTH_NAMES[Number(mo) - 1]}/${y.slice(2)}`;
+      const cur = map.get(key) ?? { key, label, goals: 0, assists: 0, games: 0 };
+      cur.goals += m.goals;
+      cur.assists += m.assists;
+      cur.games += 1;
+      map.set(key, cur);
+    }
+    return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }, [matches]);
+
+  const bestMonth = useMemo(() => {
+    if (!monthly.length) return null;
+    return monthly.reduce((b, m) => (m.goals + m.assists > b.goals + b.assists ? m : b));
+  }, [monthly]);
+  const worstMonth = useMemo(() => {
+    if (!monthly.length) return null;
+    return monthly.reduce((w, m) => (m.goals + m.assists < w.goals + w.assists ? m : w));
+  }, [monthly]);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -151,20 +170,77 @@ function Index() {
           </div>
         </header>
 
-        <section className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {loading && (
+          <div className="mb-8 flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Carregando da nuvem...
+          </div>
+        )}
+
+        <section className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Gols" value={stats.goals} accent />
           <StatCard label="Assistências" value={stats.assists} />
+          <StatCard label="Participações" value={stats.ga} highlight />
           <StatCard label="Jogos" value={stats.games} />
-          <StatCard label="G+A / jogo" value={stats.avg} />
+        </section>
+        <section className="mb-8 grid grid-cols-3 gap-3">
+          <StatCard label="Gols / jogo" value={stats.gPerGame} small />
+          <StatCard label="Assist. / jogo" value={stats.aPerGame} small />
+          <StatCard label="G+A / jogo" value={stats.gaPerGame} small />
         </section>
 
         {chartData.length > 1 && (
           <section className="mb-8 rounded-2xl border border-border bg-card p-5">
             <h2 className="mb-1 text-lg font-semibold">Evolução no Fute de Quinta</h2>
             <p className="mb-4 text-xs text-muted-foreground">
-              Gols e assistências por semana
+              Gols e assistências por semana. Quando os valores coincidem, as linhas ficam lado a lado.
             </p>
             <LineChart data={chartData} />
+          </section>
+        )}
+
+        {monthly.length > 0 && (
+          <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+            <h2 className="mb-1 text-lg font-semibold">Desempenho por mês</h2>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Participações em gols ao longo do ano
+            </p>
+            <MonthlyBarChart data={monthly} />
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full min-w-[420px] text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase text-muted-foreground">
+                    <th className="py-2 font-medium">Mês</th>
+                    <th className="py-2 font-medium">Jogos</th>
+                    <th className="py-2 font-medium text-primary">Gols</th>
+                    <th className="py-2 font-medium text-accent">Assist.</th>
+                    <th className="py-2 font-medium">G+A</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthly.map((m) => (
+                    <tr key={m.key} className="border-t border-border/60">
+                      <td className="py-2">
+                        {m.label}
+                        {bestMonth?.key === m.key && (
+                          <span className="ml-2 rounded-md bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                            melhor
+                          </span>
+                        )}
+                        {worstMonth?.key === m.key && bestMonth?.key !== m.key && (
+                          <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            pior
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2">{m.games}</td>
+                      <td className="py-2 text-primary">{m.goals}</td>
+                      <td className="py-2 text-accent">{m.assists}</td>
+                      <td className="py-2 font-medium">{m.goals + m.assists}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
 
@@ -306,15 +382,27 @@ function StatCard({
   label,
   value,
   accent,
+  highlight,
+  small,
 }: {
   label: string;
   value: number | string;
   accent?: boolean;
+  highlight?: boolean;
+  small?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div
+      className={`rounded-2xl border p-4 ${
+        highlight ? "border-primary/40 bg-primary/10" : "border-border bg-card"
+      }`}
+    >
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-3xl font-bold ${accent ? "text-primary" : "text-foreground"}`}>
+      <p
+        className={`mt-1 font-bold ${small ? "text-2xl" : "text-3xl"} ${
+          accent ? "text-primary" : highlight ? "text-primary" : "text-foreground"
+        }`}
+      >
         {value}
       </p>
     </div>
