@@ -121,7 +121,8 @@ function Index() {
     setMatches((prev) =>
       prev.map((m) => (m.id === id ? { ...m, [field]: safe } : m)),
     );
-    void supabase.from("matches").update({ [field]: safe }).eq("id", id);
+    const patch = field === "goals" ? { goals: safe } : { assists: safe };
+    void supabase.from("matches").update(patch).eq("id", id);
   }
 
   const chartData = useMemo(
