@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2 } from "lucide-react";
+import { Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "@tanstack/react-router";
 
 type MatchType = "quinta" | "pelada";
 
@@ -24,6 +25,8 @@ export const Route = createFileRoute("/")({
 function Index() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const navigate = useNavigate();
   const todayStr = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     date: todayStr,
@@ -36,6 +39,16 @@ function Index() {
   useEffect(() => {
     let active = true;
     (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        navigate({ to: "/login" });
+        return;
+      }
+      setUserEmail(sessionData.session.user.email ?? null);
+
+      // Adopt any legacy seed rows (user_id IS NULL) for this user on first login.
+      await supabase.rpc("claim_unowned_matches");
+
       const { data, error } = await supabase
         .from("matches")
         .select("*")
@@ -56,7 +69,7 @@ function Index() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, []);
+  }, [navigate]);
 
   const stats = useMemo(() => {
     const goals = matches.reduce((s, m) => s + m.goals, 0);
@@ -81,12 +94,19 @@ function Index() {
 
   async function addMatch(e: React.FormEvent) {
     e.preventDefault();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const uid = sessionData.session?.user.id;
+    if (!uid) {
+      navigate({ to: "/login" });
+      return;
+    }
     const payload = {
       date: form.date,
       type: form.type,
       location: form.location || null,
       goals: Number(form.goals) || 0,
       assists: Number(form.assists) || 0,
+      user_id: uid,
     };
     const { data, error } = await supabase
       .from("matches")
@@ -161,14 +181,28 @@ function Index() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-3xl px-5 py-10">
-        <header className="mb-10 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <Trophy className="h-6 w-6" />
+        <header className="mb-10 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+              <Trophy className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Meu Placar</h1>
+              <p className="text-sm text-muted-foreground">Gols e assistências da temporada</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Meu Placar</h1>
-            <p className="text-sm text-muted-foreground">Gols e assistências da temporada</p>
-          </div>
+          {userEmail && (
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate({ to: "/login" });
+              }}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+              title={userEmail}
+            >
+              <LogOut className="h-3.5 w-3.5" /> Sair
+            </button>
+          )}
         </header>
 
         {loading && (
