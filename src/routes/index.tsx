@@ -439,6 +439,18 @@ function LineChart({ data }: { data: { date: string; goals: number; assists: num
   const goalsPts = pointsFor("goals");
   const assistsPts = pointsFor("assists");
 
+  // Offset overlapping points slightly so both lines remain visible when
+  // goals === assists on a given week.
+  const OFFSET = 2.5;
+  const goalsAdj = goalsPts.map((p, i) => ({
+    x: p.x,
+    y: data[i].goals === data[i].assists ? p.y - OFFSET : p.y,
+  }));
+  const assistsAdj = assistsPts.map((p, i) => ({
+    x: p.x,
+    y: data[i].goals === data[i].assists ? p.y + OFFSET : p.y,
+  }));
+
   const toPath = (pts: { x: number; y: number }[]) =>
     pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
 
@@ -507,27 +519,126 @@ function LineChart({ data }: { data: { date: string; goals: number; assists: num
           </>
         )}
         <path
-          d={toPath(goalsPts)}
-          fill="none"
-          className="stroke-primary"
-          strokeWidth={2.5}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        <path
-          d={toPath(assistsPts)}
+          d={toPath(assistsAdj)}
           fill="none"
           className="stroke-accent"
           strokeWidth={2.5}
           strokeLinejoin="round"
           strokeLinecap="round"
         />
-        {goalsPts.map((p, i) => (
-          <circle key={`g-${i}`} cx={p.x} cy={p.y} r={3} className="fill-primary" />
-        ))}
-        {assistsPts.map((p, i) => (
+        <path
+          d={toPath(goalsAdj)}
+          fill="none"
+          className="stroke-primary"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {assistsAdj.map((p, i) => (
           <circle key={`a-${i}`} cx={p.x} cy={p.y} r={3} className="fill-accent" />
         ))}
+        {goalsAdj.map((p, i) => (
+          <circle key={`g-${i}`} cx={p.x} cy={p.y} r={3} className="fill-primary" />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function MonthlyBarChart({
+  data,
+}: {
+  data: { key: string; label: string; goals: number; assists: number }[];
+}) {
+  const width = 600;
+  const height = 220;
+  const padding = { top: 16, right: 12, bottom: 32, left: 28 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+
+  const maxY = Math.max(3, ...data.flatMap((d) => [d.goals, d.assists]));
+  const groupW = data.length ? innerW / data.length : 0;
+  const barW = Math.min(18, (groupW - 6) / 2);
+
+  const yTicks = Array.from({ length: maxY + 1 }, (_, i) => i);
+
+  return (
+    <div className="w-full">
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Gols
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-sm bg-accent" /> Assistências
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full"
+        role="img"
+        aria-label="Histograma de gols e assistências por mês"
+      >
+        {yTicks.map((t) => {
+          const y = padding.top + innerH - (t / maxY) * innerH;
+          return (
+            <g key={t}>
+              <line
+                x1={padding.left}
+                x2={width - padding.right}
+                y1={y}
+                y2={y}
+                className="stroke-border"
+                strokeDasharray="3 4"
+                strokeWidth={1}
+              />
+              <text
+                x={padding.left - 6}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-muted-foreground"
+                style={{ fontSize: 10 }}
+              >
+                {t}
+              </text>
+            </g>
+          );
+        })}
+        {data.map((d, i) => {
+          const cx = padding.left + i * groupW + groupW / 2;
+          const gH = (d.goals / maxY) * innerH;
+          const aH = (d.assists / maxY) * innerH;
+          const gx = cx - barW - 1;
+          const ax = cx + 1;
+          return (
+            <g key={d.key}>
+              <rect
+                x={gx}
+                y={padding.top + innerH - gH}
+                width={barW}
+                height={gH}
+                rx={2}
+                className="fill-primary"
+              />
+              <rect
+                x={ax}
+                y={padding.top + innerH - aH}
+                width={barW}
+                height={aH}
+                rx={2}
+                className="fill-accent"
+              />
+              <text
+                x={cx}
+                y={height - 14}
+                textAnchor="middle"
+                className="fill-muted-foreground"
+                style={{ fontSize: 10 }}
+              >
+                {d.label}
+              </text>
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
