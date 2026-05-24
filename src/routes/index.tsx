@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut } from "lucide-react";
+import { Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 type MatchType = "quinta" | "pelada";
 
@@ -136,13 +137,34 @@ function Index() {
     if (error) setMatches(prev);
   }
 
-  function updateStat(id: string, field: "goals" | "assists", value: number) {
-    const safe = Math.max(0, value);
-    setMatches((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, [field]: safe } : m)),
+  async function saveMatchStats(id: string, goals: number, assists: number) {
+    const safeG = Math.max(0, Math.floor(goals) || 0);
+    const safeA = Math.max(0, Math.floor(assists) || 0);
+    const prev = matches;
+    setMatches((cur) =>
+      cur.map((m) => (m.id === id ? { ...m, goals: safeG, assists: safeA } : m)),
     );
-    const patch = field === "goals" ? { goals: safe } : { assists: safe };
-    void supabase.from("matches").update(patch).eq("id", id);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const uid = sessionData.session?.user.id;
+    if (!uid) {
+      setMatches(prev);
+      toast.error("Sessão expirada. Faça login novamente.");
+      navigate({ to: "/login" });
+      return false;
+    }
+    const { error } = await supabase
+      .from("matches")
+      .update({ goals: safeG, assists: safeA })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) {
+      setMatches(prev);
+      toast.error("Não foi possível salvar na nuvem", { description: error.message });
+      return false;
+    }
+    toast.success("Jogo atualizado");
+    return true;
   }
 
   const chartData = useMemo(
@@ -356,54 +378,12 @@ function Index() {
           ) : (
             <ul className="space-y-2">
               {sorted.map((m) => (
-                <li
+                <MatchRow
                   key={m.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {formatDate(m.date)}
-                        <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
-                        {m.type === "quinta" ? "Fute de Quinta" : "Pelada"}
-                        </span>
-                      </p>
-                      {m.location && (
-                        <p className="truncate text-xs text-muted-foreground">{m.location}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <label className="inline-flex items-center gap-1 text-primary">
-                      <Target className="h-4 w-4" aria-label="Gols" />
-                      <input
-                        type="number"
-                        min={0}
-                        value={m.goals}
-                        onChange={(e) => updateStat(m.id, "goals", Number(e.target.value))}
-                        className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary"
-                      />
-                    </label>
-                    <label className="inline-flex items-center gap-1 text-accent">
-                      <Handshake className="h-4 w-4" aria-label="Assistências" />
-                      <input
-                        type="number"
-                        min={0}
-                        value={m.assists}
-                        onChange={(e) => updateStat(m.id, "assists", Number(e.target.value))}
-                        className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary"
-                      />
-                    </label>
-                    <button
-                      onClick={() => removeMatch(m.id)}
-                      aria-label="Remover"
-                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </li>
+                  match={m}
+                  onSave={saveMatchStats}
+                  onRemove={removeMatch}
+                />
               ))}
             </ul>
           )}
@@ -447,6 +427,127 @@ function StatCard({
 function formatDate(iso: string) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+function MatchRow({
+  match,
+  onSave,
+  onRemove,
+}: {
+  match: Match;
+  onSave: (id: string, goals: number, assists: number) => Promise<boolean>;
+  onRemove: (id: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [goals, setGoals] = useState(match.goals);
+  const [assists, setAssists] = useState(match.assists);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!editing) {
+      setGoals(match.goals);
+      setAssists(match.assists);
+    }
+  }, [match.goals, match.assists, editing]);
+
+  async function handleSave() {
+    setSaving(true);
+    const ok = await onSave(match.id, goals, assists);
+    setSaving(false);
+    if (ok) setEditing(false);
+  }
+
+  function handleCancel() {
+    setGoals(match.goals);
+    setAssists(match.assists);
+    setEditing(false);
+  }
+
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">
+            {formatDate(match.date)}
+            <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
+              {match.type === "quinta" ? "Fute de Quinta" : "Pelada"}
+            </span>
+          </p>
+          {match.location && (
+            <p className="truncate text-xs text-muted-foreground">{match.location}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 text-sm">
+        <span className="inline-flex items-center gap-1 text-primary">
+          <Target className="h-4 w-4" aria-label="Gols" />
+          {editing ? (
+            <input
+              type="number"
+              min={0}
+              value={goals}
+              onChange={(e) => setGoals(Number(e.target.value))}
+              className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary"
+            />
+          ) : (
+            <span className="w-6 text-center font-medium tabular-nums">{match.goals}</span>
+          )}
+        </span>
+        <span className="inline-flex items-center gap-1 text-accent">
+          <Handshake className="h-4 w-4" aria-label="Assistências" />
+          {editing ? (
+            <input
+              type="number"
+              min={0}
+              value={assists}
+              onChange={(e) => setAssists(Number(e.target.value))}
+              className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary"
+            />
+          ) : (
+            <span className="w-6 text-center font-medium tabular-nums">{match.assists}</span>
+          )}
+        </span>
+        {editing ? (
+          <>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              aria-label="Salvar"
+              className="rounded-md p-1.5 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={saving}
+              aria-label="Cancelar"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setEditing(true)}
+              aria-label="Editar"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onRemove(match.id)}
+              aria-label="Remover"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </>
+        )}
+      </div>
+    </li>
+  );
 }
 
 function shortDate(iso: string) {
