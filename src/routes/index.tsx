@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut } from "lucide-react";
+import { Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 type MatchType = "quinta" | "pelada";
 
@@ -136,13 +137,34 @@ function Index() {
     if (error) setMatches(prev);
   }
 
-  function updateStat(id: string, field: "goals" | "assists", value: number) {
-    const safe = Math.max(0, value);
-    setMatches((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, [field]: safe } : m)),
+  async function saveMatchStats(id: string, goals: number, assists: number) {
+    const safeG = Math.max(0, Math.floor(goals) || 0);
+    const safeA = Math.max(0, Math.floor(assists) || 0);
+    const prev = matches;
+    setMatches((cur) =>
+      cur.map((m) => (m.id === id ? { ...m, goals: safeG, assists: safeA } : m)),
     );
-    const patch = field === "goals" ? { goals: safe } : { assists: safe };
-    void supabase.from("matches").update(patch).eq("id", id);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const uid = sessionData.session?.user.id;
+    if (!uid) {
+      setMatches(prev);
+      toast.error("Sessão expirada. Faça login novamente.");
+      navigate({ to: "/login" });
+      return false;
+    }
+    const { error } = await supabase
+      .from("matches")
+      .update({ goals: safeG, assists: safeA })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) {
+      setMatches(prev);
+      toast.error("Não foi possível salvar na nuvem", { description: error.message });
+      return false;
+    }
+    toast.success("Jogo atualizado");
+    return true;
   }
 
   const chartData = useMemo(
