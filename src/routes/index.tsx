@@ -47,9 +47,6 @@ function Index() {
       }
       setUserEmail(sessionData.session.user.email ?? null);
 
-      // Adopt any legacy seed rows (user_id IS NULL) for this user on first login.
-      await supabase.rpc("claim_unowned_matches");
-
       const { data, error } = await supabase
         .from("matches")
         .select("*")

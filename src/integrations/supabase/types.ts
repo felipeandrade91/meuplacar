@@ -52,7 +52,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      claim_unowned_matches: { Args: never; Returns: number }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
