@@ -378,54 +378,12 @@ function Index() {
           ) : (
             <ul className="space-y-2">
               {sorted.map((m) => (
-                <li
+                <MatchRow
                   key={m.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {formatDate(m.date)}
-                        <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
-                        {m.type === "quinta" ? "Fute de Quinta" : "Pelada"}
-                        </span>
-                      </p>
-                      {m.location && (
-                        <p className="truncate text-xs text-muted-foreground">{m.location}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <label className="inline-flex items-center gap-1 text-primary">
-                      <Target className="h-4 w-4" aria-label="Gols" />
-                      <input
-                        type="number"
-                        min={0}
-                        value={m.goals}
-                        onChange={(e) => updateStat(m.id, "goals", Number(e.target.value))}
-                        className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary"
-                      />
-                    </label>
-                    <label className="inline-flex items-center gap-1 text-accent">
-                      <Handshake className="h-4 w-4" aria-label="Assistências" />
-                      <input
-                        type="number"
-                        min={0}
-                        value={m.assists}
-                        onChange={(e) => updateStat(m.id, "assists", Number(e.target.value))}
-                        className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary"
-                      />
-                    </label>
-                    <button
-                      onClick={() => removeMatch(m.id)}
-                      aria-label="Remover"
-                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </li>
+                  match={m}
+                  onSave={saveMatchStats}
+                  onRemove={removeMatch}
+                />
               ))}
             </ul>
           )}
