@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X } from "lucide-react";
+import { Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X, Film } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 type MatchType = "quinta" | "pelada";
@@ -197,6 +197,14 @@ function Index() {
     return monthly.reduce((w, m) => (m.goals + m.assists < w.goals + w.assists ? m : w));
   }, [monthly]);
 
+  const bestMatches = useMemo(() => {
+    if (!matches.length) return null;
+    const byGoals = matches.reduce((b, m) => (m.goals > b.goals ? m : b));
+    const byAssists = matches.reduce((b, m) => (m.assists > b.assists ? m : b));
+    const byGA = matches.reduce((b, m) => (m.goals + m.assists > b.goals + b.assists ? m : b));
+    return { byGoals, byAssists, byGA };
+  }, [matches]);
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-3xl px-5 py-10">
@@ -242,9 +250,26 @@ function Index() {
           <StatCard label="G+A / jogo" value={stats.gaPerGame} small />
         </section>
 
+        {bestMatches && (
+          <section className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <BestMatchCard label="Mais gols" value={bestMatches.byGoals.goals} date={bestMatches.byGoals.date} accent />
+            <BestMatchCard label="Mais assistências" value={bestMatches.byAssists.assists} date={bestMatches.byAssists.date} />
+            <BestMatchCard label="Mais participações" value={bestMatches.byGA.goals + bestMatches.byGA.assists} date={bestMatches.byGA.date} highlight />
+          </section>
+        )}
+
+        <section className="mb-8">
+          <Link
+            to="/melhores-lances"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 font-medium text-primary transition-colors hover:bg-primary/20"
+          >
+            <Film className="h-4 w-4" /> Meus melhores lances
+          </Link>
+        </section>
+
         {chartData.length > 1 && (
           <section className="mb-8 rounded-2xl border border-border bg-card p-5">
-            <h2 className="mb-1 text-lg font-semibold">Evolução no Fute de Quinta</h2>
+            <h2 className="mb-1 text-lg font-semibold">Evolução no Futebol semanal</h2>
             <p className="mb-4 text-xs text-muted-foreground">
               Gols e assistências por semana. Quando os valores coincidem, as linhas ficam lado a lado.
             </p>
@@ -325,7 +350,7 @@ function Index() {
                 }}
                 className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary"
               >
-                <option value="quinta">Fute de Quinta</option>
+                <option value="quinta">Futebol semanal</option>
                 <option value="pelada">Pelada eventual</option>
               </select>
             </label>
@@ -468,7 +493,7 @@ function MatchRow({
           <p className="truncate text-sm font-medium">
             {formatDate(match.date)}
             <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
-              {match.type === "quinta" ? "Fute de Quinta" : "Pelada"}
+              {match.type === "quinta" ? "Futebol semanal" : "Pelada"}
             </span>
           </p>
           {match.location && (
