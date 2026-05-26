@@ -252,9 +252,9 @@ function Index() {
 
         {bestMatches && (
           <section className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <BestMatchCard label="Mais gols" value={bestMatches.byGoals.goals} date={bestMatches.byGoals.date} accent />
-            <BestMatchCard label="Mais assistências" value={bestMatches.byAssists.assists} date={bestMatches.byAssists.date} />
-            <BestMatchCard label="Mais participações" value={bestMatches.byGA.goals + bestMatches.byGA.assists} date={bestMatches.byGA.date} highlight />
+            <BestMatchCard label="Partida com mais gols" value={bestMatches.byGoals.goals} date={bestMatches.byGoals.date} accent />
+            <BestMatchCard label="Partida com mais assistências" value={bestMatches.byAssists.assists} date={bestMatches.byAssists.date} />
+            <BestMatchCard label="Partida com mais participações" value={bestMatches.byGA.goals + bestMatches.byGA.assists} date={bestMatches.byGA.date} highlight />
           </section>
         )}
 
@@ -478,8 +478,8 @@ function BestMatchCard({
       >
         {value}
       </p>
-      <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-        <Calendar className="h-3 w-3" /> {formatDate(date)}
+      <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+        <Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(date)}
       </p>
     </div>
   );
