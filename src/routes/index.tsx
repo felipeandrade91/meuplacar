@@ -451,6 +451,40 @@ function formatDate(iso: string) {
   return `${d}/${m}/${y}`;
 }
 
+function BestMatchCard({
+  label,
+  value,
+  date,
+  accent,
+  highlight,
+}: {
+  label: string;
+  value: number;
+  date: string;
+  accent?: boolean;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border p-4 ${
+        highlight ? "border-primary/40 bg-primary/10" : "border-border bg-card"
+      }`}
+    >
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p
+        className={`mt-1 text-2xl font-bold ${
+          accent || highlight ? "text-primary" : "text-foreground"
+        }`}
+      >
+        {value}
+      </p>
+      <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Calendar className="h-3 w-3" /> {formatDate(date)}
+      </p>
+    </div>
+  );
+}
+
 function MatchRow({
   match,
   onSave,
