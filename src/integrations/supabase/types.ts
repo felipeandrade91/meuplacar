@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      highlights: {
+        Row: {
+          created_at: string
+          id: string
+          recorded_on: string
+          title: string
+          user_id: string
+          video_path: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          recorded_on: string
+          title: string
+          user_id: string
+          video_path: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          recorded_on?: string
+          title?: string
+          user_id?: string
+          video_path?: string
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           assists: number
