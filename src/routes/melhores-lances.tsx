@@ -16,7 +16,7 @@ interface HighlightView extends Highlight {
   url: string;
 }
 
-const MAX_BYTES = 8 * 1024 * 1024; // 8MB safety margin (user said ~5MB)
+const MAX_BYTES = 15 * 1024 * 1024; // 15MB limit
 
 export const Route = createFileRoute("/melhores-lances")({
   component: HighlightsPage,
@@ -171,7 +171,7 @@ function UploadForm({ onCancel, onUploaded }: { onCancel: () => void; onUploaded
     }
     if (file.size > MAX_BYTES) {
       toast.error("Arquivo muito grande", {
-        description: "Use vídeos de até 8MB (cerca de 30s).",
+        description: "Use vídeos de até 15MB (cerca de 60s).",
       });
       return;
     }
@@ -250,7 +250,7 @@ function UploadForm({ onCancel, onUploaded }: { onCancel: () => void; onUploaded
           />
         </label>
         <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-muted-foreground">Vídeo (até 8MB)</span>
+          <span className="text-muted-foreground">Vídeo (até 15MB)</span>
           <input
             type="file"
             accept="video/*"
