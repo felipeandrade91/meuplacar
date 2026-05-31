@@ -46,6 +46,7 @@ export type Database = {
           assists: number
           created_at: string
           date: string
+          duration_minutes: number
           goals: number
           id: string
           location: string | null
@@ -56,6 +57,7 @@ export type Database = {
           assists?: number
           created_at?: string
           date: string
+          duration_minutes?: number
           goals?: number
           id?: string
           location?: string | null
@@ -66,11 +68,36 @@ export type Database = {
           assists?: number
           created_at?: string
           date?: string
+          duration_minutes?: number
           goals?: number
           id?: string
           location?: string | null
           type?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_profile: {
+        Row: {
+          created_at: string
+          height_cm: number | null
+          updated_at: string
+          user_id: string
+          weight_kg: number | null
+        }
+        Insert: {
+          created_at?: string
+          height_cm?: number | null
+          updated_at?: string
+          user_id: string
+          weight_kg?: number | null
+        }
+        Update: {
+          created_at?: string
+          height_cm?: number | null
+          updated_at?: string
+          user_id?: string
+          weight_kg?: number | null
         }
         Relationships: []
       }
