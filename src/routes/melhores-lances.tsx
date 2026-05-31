@@ -3,6 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Film, Plus, Trash2, Loader2, Calendar, Upload, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Highlight {
   id: string;
@@ -26,6 +31,7 @@ function HighlightsPage() {
   const [items, setItems] = useState<HighlightView[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [toRemove, setToRemove] = useState<HighlightView | null>(null);
   const navigate = useNavigate();
 
   async function load() {
@@ -62,7 +68,6 @@ function HighlightsPage() {
   }, []);
 
   async function handleRemove(h: HighlightView) {
-    if (!confirm(`Remover "${h.title}"?`)) return;
     const prev = items;
     setItems((cur) => cur.filter((x) => x.id !== h.id));
     const { error: delErr } = await supabase.from("highlights").delete().eq("id", h.id);
@@ -116,15 +121,23 @@ function HighlightsPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Carregando vídeos...
+          <div className="grid gap-5 sm:grid-cols-2">
+            {[0,1].map((i) => <Skeleton key={i} className="aspect-video w-full rounded-2xl" />)}
           </div>
         ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum lance registrado ainda.</p>
+          <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+              <Film className="h-7 w-7" />
+            </div>
+            <h2 className="text-lg font-semibold">Nenhum lance ainda</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Toque em <strong>Carregar novo vídeo</strong> para guardar seus melhores momentos.
+            </p>
+          </div>
         ) : (
           <ul className="grid gap-5 sm:grid-cols-2">
             {items.map((h) => (
-              <li key={h.id} className="overflow-hidden rounded-2xl border border-border bg-card">
+              <li key={h.id} className="overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/50">
                 <video
                   src={h.url}
                   controls
@@ -140,7 +153,7 @@ function HighlightsPage() {
                     </p>
                   </div>
                   <button
-                    onClick={() => handleRemove(h)}
+                    onClick={() => setToRemove(h)}
                     aria-label="Remover"
                     className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
                   >
@@ -152,6 +165,26 @@ function HighlightsPage() {
           </ul>
         )}
       </div>
+
+      <AlertDialog open={!!toRemove} onOpenChange={(o) => !o && setToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover lance?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {toRemove && <>O vídeo <strong>"{toRemove.title}"</strong> será excluído permanentemente.</>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (toRemove) handleRemove(toRemove); setToRemove(null); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
