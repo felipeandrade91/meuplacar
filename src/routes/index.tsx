@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X, Film,
-  Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User,
+  Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User, Ruler, Info,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "@tanstack/react-router";
@@ -30,11 +30,21 @@ interface Profile {
   weight_kg: number | null;
 }
 
+interface Sample {
+  id: string;
+  kind: "calories" | "distance";
+  value: number;
+  note: string | null;
+  created_at: string;
+}
+
 const QUINTA_LOCATION = "Quadra Catão Roxo";
 const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-const CAL_PER_MIN = 10; // 600 cal / 60 min
+const MONTH_FULL = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DEFAULT_CAL_PER_GAME = 681.4;
+const DEFAULT_KM_PER_GAME = 4.2575;
 
-type PeriodKey = "all" | "30" | "90" | "year" | "month";
+type PeriodKey = "all" | "30" | "90" | "year" | "month" | `m:${string}`;
 const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
   { key: "all", label: "Todos" },
   { key: "month", label: "Este mês" },
@@ -50,11 +60,13 @@ export const Route = createFileRoute("/")({
 function Index() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [profile, setProfile] = useState<Profile>({ height_cm: null, weight_kg: null });
+  const [samples, setSamples] = useState<Sample[]>([]);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [confirmDelete, setConfirmDelete] = useState<Match | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [samplesOpen, setSamplesOpen] = useState<null | "calories" | "distance">(null);
   const navigate = useNavigate();
   const todayStr = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
@@ -77,9 +89,10 @@ function Index() {
       setUserEmail(sessionData.session.user.email ?? null);
       const uid = sessionData.session.user.id;
 
-      const [matchesRes, profileRes] = await Promise.all([
+      const [matchesRes, profileRes, samplesRes] = await Promise.all([
         supabase.from("matches").select("*").order("date", { ascending: false }),
         supabase.from("user_profile").select("height_cm, weight_kg").eq("user_id", uid).maybeSingle(),
+        supabase.from("physical_samples").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
       ]);
       if (!active) return;
       if (!matchesRes.error && matchesRes.data) {
@@ -99,6 +112,12 @@ function Index() {
           weight_kg: profileRes.data.weight_kg ? Number(profileRes.data.weight_kg) : null,
         });
       }
+      if (!samplesRes.error && samplesRes.data) {
+        setSamples(samplesRes.data.map((s) => ({
+          id: s.id, kind: s.kind as "calories" | "distance",
+          value: Number(s.value), note: s.note, created_at: s.created_at,
+        })));
+      }
       setLoading(false);
     })();
     return () => { active = false; };
@@ -107,6 +126,10 @@ function Index() {
   // ---- Filtered matches by period ----
   const filteredMatches = useMemo(() => {
     if (period === "all") return matches;
+    if (typeof period === "string" && period.startsWith("m:")) {
+      const key = period.slice(2); // "YYYY-MM"
+      return matches.filter((m) => m.date.startsWith(key));
+    }
     const now = new Date();
     let from: Date;
     if (period === "month") from = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -116,21 +139,48 @@ function Index() {
     return matches.filter((m) => m.date >= fromStr);
   }, [matches, period]);
 
+  // Months available in match history (newest first)
+  const availableMonths = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of matches) set.add(m.date.slice(0, 7));
+    return [...set].sort((a, b) => b.localeCompare(a));
+  }, [matches]);
+
+  // ---- Calorie & distance stats from samples (with fallback) ----
+  const physical = useMemo(() => {
+    const compute = (kind: "calories" | "distance", fallback: number) => {
+      const arr = samples.filter((s) => s.kind === kind).map((s) => s.value);
+      const isDefault = arr.length === 0;
+      const values = isDefault ? [fallback] : arr;
+      const mean = values.reduce((a, b) => a + b, 0) / values.length;
+      const variance = values.length > 1
+        ? values.reduce((a, b) => a + (b - mean) ** 2, 0) / (values.length - 1)
+        : 0;
+      const std = Math.sqrt(variance);
+      return { mean, std, count: arr.length, isDefault };
+    };
+    return {
+      cal: compute("calories", DEFAULT_CAL_PER_GAME),
+      km: compute("distance", DEFAULT_KM_PER_GAME),
+    };
+  }, [samples]);
+
   const stats = useMemo(() => {
     const goals = filteredMatches.reduce((s, m) => s + m.goals, 0);
     const assists = filteredMatches.reduce((s, m) => s + m.assists, 0);
     const games = filteredMatches.length;
     const ga = goals + assists;
     const minutes = filteredMatches.reduce((s, m) => s + (m.duration_minutes || 60), 0);
-    const calories = minutes * CAL_PER_MIN;
+    const calories = games * physical.cal.mean;
+    const km = games * physical.km.mean;
     return {
       goals, assists, games, ga, minutes, calories,
+      km,
       gPerGame: games ? (goals / games).toFixed(2) : "0.00",
       aPerGame: games ? (assists / games).toFixed(2) : "0.00",
       gaPerGame: games ? (ga / games).toFixed(2) : "0.00",
-      calPerGame: games ? Math.round(calories / games) : 0,
     };
-  }, [filteredMatches]);
+  }, [filteredMatches, physical]);
 
   const sorted = useMemo(
     () => [...filteredMatches].sort((a, b) => b.date.localeCompare(a.date)),
@@ -320,6 +370,30 @@ function Index() {
     setProfileOpen(false);
   }
 
+  async function addSample(kind: "calories" | "distance", value: number, note: string) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const uid = sessionData.session?.user.id;
+    if (!uid) return;
+    const { data, error } = await supabase
+      .from("physical_samples")
+      .insert({ user_id: uid, kind, value, note: note || null })
+      .select()
+      .single();
+    if (error || !data) { toast.error("Erro ao salvar valor", { description: error?.message }); return; }
+    setSamples((prev) => [{
+      id: data.id, kind: data.kind as "calories" | "distance",
+      value: Number(data.value), note: data.note, created_at: data.created_at,
+    }, ...prev]);
+    toast.success("Valor adicionado");
+  }
+
+  async function removeSample(id: string) {
+    const prev = samples;
+    setSamples((cur) => cur.filter((s) => s.id !== id));
+    const { error } = await supabase.from("physical_samples").delete().eq("id", id);
+    if (error) { setSamples(prev); toast.error("Erro ao remover"); }
+  }
+
   function exportCsv() {
     const header = ["data", "tipo", "local", "gols", "assistencias", "duracao_min"];
     const rows = sorted.map((m) => [
@@ -402,6 +476,29 @@ function Index() {
                   {p.label}
                 </button>
               ))}
+              {availableMonths.length > 0 && (
+                <select
+                  value={typeof period === "string" && period.startsWith("m:") ? period : ""}
+                  onChange={(e) => {
+                    if (e.target.value) setPeriod(e.target.value as PeriodKey);
+                  }}
+                  className={`rounded-full border px-3 py-1 text-xs outline-none transition-colors ${
+                    typeof period === "string" && period.startsWith("m:")
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-border bg-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <option value="">Mês específico…</option>
+                  {availableMonths.map((k) => {
+                    const [y, mo] = k.split("-");
+                    return (
+                      <option key={k} value={`m:${k}`}>
+                        {MONTH_FULL[Number(mo) - 1]}/{y}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
             </div>
 
             <section className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -424,39 +521,12 @@ function Index() {
               </section>
             )}
 
-            {/* Physical performance */}
-            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Performance física</h2>
-                <button
-                  onClick={() => setProfileOpen(true)}
-                  aria-label="Editar perfil"
-                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <PhysicalCard
-                  icon={<Flame className="h-4 w-4" />}
-                  label="Calorias gastas"
-                  value={stats.calories.toLocaleString("pt-BR")}
-                  hint={`~${stats.calPerGame} cal / partida`}
-                  accent
-                />
-                <PhysicalCard
-                  icon={<Timer className="h-4 w-4" />}
-                  label="Tempo jogado"
-                  value={`${stats.minutes.toLocaleString("pt-BR")} min`}
-                  hint={formatHours(stats.minutes)}
-                />
-                <BMICard bmi={bmi} onEdit={() => setProfileOpen(true)} />
-              </div>
-            </section>
-
             {/* Sequences */}
             <section className="mb-8 rounded-2xl border border-border bg-card p-5">
-              <h2 className="mb-4 text-lg font-semibold">Sequências</h2>
+              <h2 className="text-lg font-semibold">Sequências</h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Jogos consecutivos com gol, assistência ou participação (gol + assistência). Mostra a sequência atual e o recorde histórico.
+              </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <SequenceCard label="Com gol" current={sequences.goal.current} best={sequences.goal.best} />
                 <SequenceCard label="Com assistência" current={sequences.assist.current} best={sequences.assist.best} />
@@ -500,6 +570,48 @@ function Index() {
                 <DistributionDonut d={distribution} />
               </section>
             )}
+
+            {/* Physical performance (last metric section, above CTA) */}
+            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+              <div className="mb-1 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Performance física</h2>
+                <button
+                  onClick={() => setProfileOpen(true)}
+                  aria-label="Editar perfil"
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mb-4 inline-flex items-start gap-1.5 text-xs text-muted-foreground">
+                <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                Calorias e km são <strong className="mx-1 font-medium text-foreground">estimativas</strong> baseadas em médias dos seus valores brutos. Adicione mais medições do seu smartwatch para refinar.
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <PhysicalStatCard
+                  icon={<Flame className="h-4 w-4" />}
+                  label="Calorias gastas"
+                  value={Math.round(stats.calories).toLocaleString("pt-BR")}
+                  hint={`~${physical.cal.mean.toFixed(0)}${physical.cal.std > 0 ? ` ± ${physical.cal.std.toFixed(0)}` : ""} cal / partida${physical.cal.isDefault ? " (padrão)" : ""}`}
+                  onEdit={() => setSamplesOpen("calories")}
+                  accent
+                />
+                <PhysicalStatCard
+                  icon={<Ruler className="h-4 w-4" />}
+                  label="Distância percorrida"
+                  value={`${stats.km.toFixed(1).replace(".", ",")} km`}
+                  hint={`~${physical.km.mean.toFixed(2).replace(".", ",")}${physical.km.std > 0 ? ` ± ${physical.km.std.toFixed(2).replace(".", ",")}` : ""} km / partida${physical.km.isDefault ? " (padrão)" : ""}`}
+                  onEdit={() => setSamplesOpen("distance")}
+                />
+                <PhysicalCard
+                  icon={<Timer className="h-4 w-4" />}
+                  label="Tempo jogado"
+                  value={`${stats.minutes.toLocaleString("pt-BR")} min`}
+                  hint={formatHours(stats.minutes)}
+                />
+                <BMICard bmi={bmi} onEdit={() => setProfileOpen(true)} />
+              </div>
+            </section>
 
             <section className="mb-8">
               <Link
@@ -560,12 +672,6 @@ function Index() {
               </section>
             )}
 
-            {/* Heatmap */}
-            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
-              <h2 className="mb-1 text-lg font-semibold">Calendário do ano</h2>
-              <p className="mb-4 text-xs text-muted-foreground">Cada quadrado é um dia. Quanto mais laranja, mais participações.</p>
-              <YearHeatmap matches={matches} />
-            </section>
           </>
         )}
 
@@ -679,6 +785,15 @@ function Index() {
         profile={profile}
         onSave={saveProfile}
       />
+
+      <SamplesDialog
+        kind={samplesOpen}
+        onOpenChange={(o) => { if (!o) setSamplesOpen(null); }}
+        samples={samples.filter((s) => s.kind === samplesOpen)}
+        defaultValue={samplesOpen === "calories" ? DEFAULT_CAL_PER_GAME : DEFAULT_KM_PER_GAME}
+        onAdd={(v, n) => samplesOpen && addSample(samplesOpen, v, n)}
+        onRemove={removeSample}
+      />
     </main>
   );
 }
@@ -730,6 +845,27 @@ function PhysicalCard({
 }: { icon: React.ReactNode; label: string; value: string; hint?: string; accent?: boolean }) {
   return (
     <div className={`rounded-xl border p-4 ${accent ? "border-primary/40 bg-primary/5" : "border-border bg-background/40"}`}>
+      <p className={`inline-flex items-center gap-1.5 text-xs uppercase tracking-wide ${accent ? "text-primary" : "text-muted-foreground"}`}>
+        {icon} {label}
+      </p>
+      <p className={`mt-1.5 text-2xl font-bold tabular-nums ${accent ? "text-primary" : "text-foreground"}`}>{value}</p>
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function PhysicalStatCard({
+  icon, label, value, hint, onEdit, accent,
+}: { icon: React.ReactNode; label: string; value: string; hint?: string; onEdit: () => void; accent?: boolean }) {
+  return (
+    <div className={`relative rounded-xl border p-4 ${accent ? "border-primary/40 bg-primary/5" : "border-border bg-background/40"}`}>
+      <button
+        onClick={onEdit}
+        aria-label="Ver valores brutos"
+        className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
       <p className={`inline-flex items-center gap-1.5 text-xs uppercase tracking-wide ${accent ? "text-primary" : "text-muted-foreground"}`}>
         {icon} {label}
       </p>
@@ -860,56 +996,119 @@ function DistributionDonut({ d }: { d: { total: number; withGoal: number; onlyAs
   );
 }
 
-function YearHeatmap({ matches }: { matches: Match[] }) {
-  const year = new Date().getFullYear();
-  const map = new Map<string, number>();
-  for (const m of matches) {
-    if (!m.date.startsWith(String(year))) continue;
-    map.set(m.date, (map.get(m.date) ?? 0) + m.goals + m.assists);
-  }
-  const start = new Date(year, 0, 1);
-  const end = new Date(year, 11, 31);
-  // Build a grid: columns = weeks, rows = day of week (0=Sun..6=Sat)
-  const dayStart = new Date(start);
-  dayStart.setDate(dayStart.getDate() - dayStart.getDay()); // back to Sunday
-  const cells: { date: string; value: number; inYear: boolean }[] = [];
-  for (let d = new Date(dayStart); d <= end; d.setDate(d.getDate() + 1)) {
-    const iso = d.toISOString().slice(0, 10);
-    cells.push({ date: iso, value: map.get(iso) ?? 0, inYear: d.getFullYear() === year });
-  }
-  const maxVal = Math.max(1, ...cells.map((c) => c.value));
-  const colorFor = (v: number) => {
-    if (v <= 0) return "var(--muted)";
-    const t = v / maxVal;
-    const lightness = 0.45 + t * 0.35;
-    return `oklch(${lightness} 0.18 60)`;
-  };
-  const size = 11, gap = 2;
-  const cols = Math.ceil(cells.length / 7);
-  const width = cols * (size + gap);
-  const height = 7 * (size + gap);
+function SamplesDialog({
+  kind, onOpenChange, samples, defaultValue, onAdd, onRemove,
+}: {
+  kind: "calories" | "distance" | null;
+  onOpenChange: (o: boolean) => void;
+  samples: Sample[];
+  defaultValue: number;
+  onAdd: (value: number, note: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [value, setValue] = useState("");
+  const [note, setNote] = useState("");
+  useEffect(() => { if (kind) { setValue(""); setNote(""); } }, [kind]);
+  if (!kind) return null;
+  const isCal = kind === "calories";
+  const unit = isCal ? "cal" : "km";
+  const title = isCal ? "Calorias por partida" : "Distância por partida";
+  const placeholder = isCal ? "Ex: 681" : "Ex: 4.30";
+  const values = samples.map((s) => s.value);
+  const total = values.reduce((a, b) => a + b, 0);
+  const mean = values.length ? total / values.length : defaultValue;
+  const std = values.length > 1
+    ? Math.sqrt(values.reduce((a, b) => a + (b - mean) ** 2, 0) / (values.length - 1))
+    : 0;
   return (
-    <div className="overflow-x-auto">
-      <svg width={width} height={height + 16} viewBox={`0 0 ${width} ${height + 16}`} className="min-w-[640px]">
-        {cells.map((cell, i) => {
-          const col = Math.floor(i / 7);
-          const row = i % 7;
-          return (
-            <rect key={i} x={col * (size + gap)} y={row * (size + gap)} width={size} height={size} rx={2}
-              fill={colorFor(cell.value)} opacity={cell.inYear ? 1 : 0.25}>
-              <title>{cell.date}: {cell.value} participações</title>
-            </rect>
-          );
-        })}
-      </svg>
-      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-        <span>Menos</span>
-        {[0, 0.25, 0.5, 0.75, 1].map((t, i) => (
-          <span key={i} className="h-3 w-3 rounded-sm" style={{ background: t === 0 ? "var(--muted)" : `oklch(${0.45 + t * 0.35} 0.18 60)` }} />
-        ))}
-        <span>Mais</span>
-      </div>
-    </div>
+    <AlertDialog open={!!kind} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>
+            Adicione medições do seu smartwatch para que a média seja calculada com base nos seus dados reais. Quanto mais valores, mais precisa fica a estimativa.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="rounded-xl border border-border bg-background/40 p-3 text-sm">
+          {values.length === 0 ? (
+            <p className="text-muted-foreground">
+              Sem medições ainda. Usando valor padrão de <strong className="text-foreground">{defaultValue.toString().replace(".", ",")} {unit}</strong> por partida.
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <span className="text-foreground">
+                Média: <strong className="text-primary">{isCal ? mean.toFixed(1).replace(".", ",") : mean.toFixed(2).replace(".", ",")} {unit}</strong>
+              </span>
+              {std > 0 && (
+                <span className="text-muted-foreground">
+                  ± {isCal ? std.toFixed(1).replace(".", ",") : std.toFixed(2).replace(".", ",")}
+                </span>
+              )}
+              <span className="text-muted-foreground">
+                · {values.length} medição{values.length > 1 ? "ões" : ""}
+              </span>
+              <span className="text-muted-foreground">
+                · total {isCal ? Math.round(total).toLocaleString("pt-BR") : total.toFixed(2).replace(".", ",")} {unit}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Adicionar nova medição</p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="number" step={isCal ? "1" : "0.01"} min={0}
+              value={value} onChange={(e) => setValue(e.target.value)}
+              placeholder={placeholder}
+              className="w-28 rounded-lg border border-border bg-input/40 px-3 py-2 text-sm outline-none focus:border-primary"
+            />
+            <input
+              type="text" value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Nota (opcional)"
+              className="min-w-0 flex-1 rounded-lg border border-border bg-input/40 px-3 py-2 text-sm outline-none focus:border-primary"
+            />
+            <button
+              onClick={() => {
+                const v = Number(value.replace(",", "."));
+                if (!v || v <= 0) { toast.error("Informe um valor válido"); return; }
+                onAdd(v, note);
+                setValue(""); setNote("");
+              }}
+              className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <Plus className="h-3.5 w-3.5" /> Salvar
+            </button>
+          </div>
+        </div>
+
+        {samples.length > 0 && (
+          <div className="max-h-56 space-y-1.5 overflow-y-auto">
+            {samples.map((s) => (
+              <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background/40 px-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <span className="font-medium tabular-nums">
+                    {isCal ? s.value.toFixed(0) : s.value.toFixed(2).replace(".", ",")} {unit}
+                  </span>
+                  {s.note && <span className="ml-2 text-xs text-muted-foreground">— {s.note}</span>}
+                </div>
+                <button
+                  onClick={() => onRemove(s.id)} aria-label="Remover"
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <AlertDialogFooter>
+          <AlertDialogCancel>Fechar</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
