@@ -996,56 +996,119 @@ function DistributionDonut({ d }: { d: { total: number; withGoal: number; onlyAs
   );
 }
 
-function YearHeatmap({ matches }: { matches: Match[] }) {
-  const year = new Date().getFullYear();
-  const map = new Map<string, number>();
-  for (const m of matches) {
-    if (!m.date.startsWith(String(year))) continue;
-    map.set(m.date, (map.get(m.date) ?? 0) + m.goals + m.assists);
-  }
-  const start = new Date(year, 0, 1);
-  const end = new Date(year, 11, 31);
-  // Build a grid: columns = weeks, rows = day of week (0=Sun..6=Sat)
-  const dayStart = new Date(start);
-  dayStart.setDate(dayStart.getDate() - dayStart.getDay()); // back to Sunday
-  const cells: { date: string; value: number; inYear: boolean }[] = [];
-  for (let d = new Date(dayStart); d <= end; d.setDate(d.getDate() + 1)) {
-    const iso = d.toISOString().slice(0, 10);
-    cells.push({ date: iso, value: map.get(iso) ?? 0, inYear: d.getFullYear() === year });
-  }
-  const maxVal = Math.max(1, ...cells.map((c) => c.value));
-  const colorFor = (v: number) => {
-    if (v <= 0) return "var(--muted)";
-    const t = v / maxVal;
-    const lightness = 0.45 + t * 0.35;
-    return `oklch(${lightness} 0.18 60)`;
-  };
-  const size = 11, gap = 2;
-  const cols = Math.ceil(cells.length / 7);
-  const width = cols * (size + gap);
-  const height = 7 * (size + gap);
+function SamplesDialog({
+  kind, onOpenChange, samples, defaultValue, onAdd, onRemove,
+}: {
+  kind: "calories" | "distance" | null;
+  onOpenChange: (o: boolean) => void;
+  samples: Sample[];
+  defaultValue: number;
+  onAdd: (value: number, note: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [value, setValue] = useState("");
+  const [note, setNote] = useState("");
+  useEffect(() => { if (kind) { setValue(""); setNote(""); } }, [kind]);
+  if (!kind) return null;
+  const isCal = kind === "calories";
+  const unit = isCal ? "cal" : "km";
+  const title = isCal ? "Calorias por partida" : "Distância por partida";
+  const placeholder = isCal ? "Ex: 681" : "Ex: 4.30";
+  const values = samples.map((s) => s.value);
+  const total = values.reduce((a, b) => a + b, 0);
+  const mean = values.length ? total / values.length : defaultValue;
+  const std = values.length > 1
+    ? Math.sqrt(values.reduce((a, b) => a + (b - mean) ** 2, 0) / (values.length - 1))
+    : 0;
   return (
-    <div className="overflow-x-auto">
-      <svg width={width} height={height + 16} viewBox={`0 0 ${width} ${height + 16}`} className="min-w-[640px]">
-        {cells.map((cell, i) => {
-          const col = Math.floor(i / 7);
-          const row = i % 7;
-          return (
-            <rect key={i} x={col * (size + gap)} y={row * (size + gap)} width={size} height={size} rx={2}
-              fill={colorFor(cell.value)} opacity={cell.inYear ? 1 : 0.25}>
-              <title>{cell.date}: {cell.value} participações</title>
-            </rect>
-          );
-        })}
-      </svg>
-      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-        <span>Menos</span>
-        {[0, 0.25, 0.5, 0.75, 1].map((t, i) => (
-          <span key={i} className="h-3 w-3 rounded-sm" style={{ background: t === 0 ? "var(--muted)" : `oklch(${0.45 + t * 0.35} 0.18 60)` }} />
-        ))}
-        <span>Mais</span>
-      </div>
-    </div>
+    <AlertDialog open={!!kind} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>
+            Adicione medições do seu smartwatch para que a média seja calculada com base nos seus dados reais. Quanto mais valores, mais precisa fica a estimativa.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="rounded-xl border border-border bg-background/40 p-3 text-sm">
+          {values.length === 0 ? (
+            <p className="text-muted-foreground">
+              Sem medições ainda. Usando valor padrão de <strong className="text-foreground">{defaultValue.toString().replace(".", ",")} {unit}</strong> por partida.
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <span className="text-foreground">
+                Média: <strong className="text-primary">{isCal ? mean.toFixed(1).replace(".", ",") : mean.toFixed(2).replace(".", ",")} {unit}</strong>
+              </span>
+              {std > 0 && (
+                <span className="text-muted-foreground">
+                  ± {isCal ? std.toFixed(1).replace(".", ",") : std.toFixed(2).replace(".", ",")}
+                </span>
+              )}
+              <span className="text-muted-foreground">
+                · {values.length} medição{values.length > 1 ? "ões" : ""}
+              </span>
+              <span className="text-muted-foreground">
+                · total {isCal ? Math.round(total).toLocaleString("pt-BR") : total.toFixed(2).replace(".", ",")} {unit}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Adicionar nova medição</p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="number" step={isCal ? "1" : "0.01"} min={0}
+              value={value} onChange={(e) => setValue(e.target.value)}
+              placeholder={placeholder}
+              className="w-28 rounded-lg border border-border bg-input/40 px-3 py-2 text-sm outline-none focus:border-primary"
+            />
+            <input
+              type="text" value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Nota (opcional)"
+              className="min-w-0 flex-1 rounded-lg border border-border bg-input/40 px-3 py-2 text-sm outline-none focus:border-primary"
+            />
+            <button
+              onClick={() => {
+                const v = Number(value.replace(",", "."));
+                if (!v || v <= 0) { toast.error("Informe um valor válido"); return; }
+                onAdd(v, note);
+                setValue(""); setNote("");
+              }}
+              className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <Plus className="h-3.5 w-3.5" /> Salvar
+            </button>
+          </div>
+        </div>
+
+        {samples.length > 0 && (
+          <div className="max-h-56 space-y-1.5 overflow-y-auto">
+            {samples.map((s) => (
+              <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background/40 px-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <span className="font-medium tabular-nums">
+                    {isCal ? s.value.toFixed(0) : s.value.toFixed(2).replace(".", ",")} {unit}
+                  </span>
+                  {s.note && <span className="ml-2 text-xs text-muted-foreground">— {s.note}</span>}
+                </div>
+                <button
+                  onClick={() => onRemove(s.id)} aria-label="Remover"
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <AlertDialogFooter>
+          <AlertDialogCancel>Fechar</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
