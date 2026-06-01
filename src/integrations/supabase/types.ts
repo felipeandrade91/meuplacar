@@ -77,6 +77,33 @@ export type Database = {
         }
         Relationships: []
       }
+      physical_samples: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          note: string | null
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          note?: string | null
+          user_id: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
       user_profile: {
         Row: {
           created_at: string
