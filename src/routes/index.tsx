@@ -785,6 +785,15 @@ function Index() {
         profile={profile}
         onSave={saveProfile}
       />
+
+      <SamplesDialog
+        kind={samplesOpen}
+        onOpenChange={(o) => { if (!o) setSamplesOpen(null); }}
+        samples={samples.filter((s) => s.kind === samplesOpen)}
+        defaultValue={samplesOpen === "calories" ? DEFAULT_CAL_PER_GAME : DEFAULT_KM_PER_GAME}
+        onAdd={(v, n) => samplesOpen && addSample(samplesOpen, v, n)}
+        onRemove={removeSample}
+      />
     </main>
   );
 }
