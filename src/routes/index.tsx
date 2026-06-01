@@ -476,6 +476,29 @@ function Index() {
                   {p.label}
                 </button>
               ))}
+              {availableMonths.length > 0 && (
+                <select
+                  value={typeof period === "string" && period.startsWith("m:") ? period : ""}
+                  onChange={(e) => {
+                    if (e.target.value) setPeriod(e.target.value as PeriodKey);
+                  }}
+                  className={`rounded-full border px-3 py-1 text-xs outline-none transition-colors ${
+                    typeof period === "string" && period.startsWith("m:")
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-border bg-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <option value="">Mês específico…</option>
+                  {availableMonths.map((k) => {
+                    const [y, mo] = k.split("-");
+                    return (
+                      <option key={k} value={`m:${k}`}>
+                        {MONTH_FULL[Number(mo) - 1]}/{y}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
             </div>
 
             <section className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -498,39 +521,12 @@ function Index() {
               </section>
             )}
 
-            {/* Physical performance */}
-            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Performance física</h2>
-                <button
-                  onClick={() => setProfileOpen(true)}
-                  aria-label="Editar perfil"
-                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <PhysicalCard
-                  icon={<Flame className="h-4 w-4" />}
-                  label="Calorias gastas"
-                  value={stats.calories.toLocaleString("pt-BR")}
-                  hint={`~${stats.calPerGame} cal / partida`}
-                  accent
-                />
-                <PhysicalCard
-                  icon={<Timer className="h-4 w-4" />}
-                  label="Tempo jogado"
-                  value={`${stats.minutes.toLocaleString("pt-BR")} min`}
-                  hint={formatHours(stats.minutes)}
-                />
-                <BMICard bmi={bmi} onEdit={() => setProfileOpen(true)} />
-              </div>
-            </section>
-
             {/* Sequences */}
             <section className="mb-8 rounded-2xl border border-border bg-card p-5">
-              <h2 className="mb-4 text-lg font-semibold">Sequências</h2>
+              <h2 className="text-lg font-semibold">Sequências</h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Jogos consecutivos com gol, assistência ou participação (gol + assistência). Mostra a sequência atual e o recorde histórico.
+              </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <SequenceCard label="Com gol" current={sequences.goal.current} best={sequences.goal.best} />
                 <SequenceCard label="Com assistência" current={sequences.assist.current} best={sequences.assist.best} />
@@ -574,6 +570,48 @@ function Index() {
                 <DistributionDonut d={distribution} />
               </section>
             )}
+
+            {/* Physical performance (last metric section, above CTA) */}
+            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+              <div className="mb-1 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Performance física</h2>
+                <button
+                  onClick={() => setProfileOpen(true)}
+                  aria-label="Editar perfil"
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mb-4 inline-flex items-start gap-1.5 text-xs text-muted-foreground">
+                <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                Calorias e km são <strong className="mx-1 font-medium text-foreground">estimativas</strong> baseadas em médias dos seus valores brutos. Adicione mais medições do seu smartwatch para refinar.
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <PhysicalStatCard
+                  icon={<Flame className="h-4 w-4" />}
+                  label="Calorias gastas"
+                  value={Math.round(stats.calories).toLocaleString("pt-BR")}
+                  hint={`~${physical.cal.mean.toFixed(0)}${physical.cal.std > 0 ? ` ± ${physical.cal.std.toFixed(0)}` : ""} cal / partida${physical.cal.isDefault ? " (padrão)" : ""}`}
+                  onEdit={() => setSamplesOpen("calories")}
+                  accent
+                />
+                <PhysicalStatCard
+                  icon={<Ruler className="h-4 w-4" />}
+                  label="Distância percorrida"
+                  value={`${stats.km.toFixed(1).replace(".", ",")} km`}
+                  hint={`~${physical.km.mean.toFixed(2).replace(".", ",")}${physical.km.std > 0 ? ` ± ${physical.km.std.toFixed(2).replace(".", ",")}` : ""} km / partida${physical.km.isDefault ? " (padrão)" : ""}`}
+                  onEdit={() => setSamplesOpen("distance")}
+                />
+                <PhysicalCard
+                  icon={<Timer className="h-4 w-4" />}
+                  label="Tempo jogado"
+                  value={`${stats.minutes.toLocaleString("pt-BR")} min`}
+                  hint={formatHours(stats.minutes)}
+                />
+                <BMICard bmi={bmi} onEdit={() => setProfileOpen(true)} />
+              </div>
+            </section>
 
             <section className="mb-8">
               <Link
@@ -634,12 +672,6 @@ function Index() {
               </section>
             )}
 
-            {/* Heatmap */}
-            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
-              <h2 className="mb-1 text-lg font-semibold">Calendário do ano</h2>
-              <p className="mb-4 text-xs text-muted-foreground">Cada quadrado é um dia. Quanto mais laranja, mais participações.</p>
-              <YearHeatmap matches={matches} />
-            </section>
           </>
         )}
 
