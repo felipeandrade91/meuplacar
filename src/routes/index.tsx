@@ -370,6 +370,30 @@ function Index() {
     setProfileOpen(false);
   }
 
+  async function addSample(kind: "calories" | "distance", value: number, note: string) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const uid = sessionData.session?.user.id;
+    if (!uid) return;
+    const { data, error } = await supabase
+      .from("physical_samples")
+      .insert({ user_id: uid, kind, value, note: note || null })
+      .select()
+      .single();
+    if (error || !data) { toast.error("Erro ao salvar valor", { description: error?.message }); return; }
+    setSamples((prev) => [{
+      id: data.id, kind: data.kind as "calories" | "distance",
+      value: Number(data.value), note: data.note, created_at: data.created_at,
+    }, ...prev]);
+    toast.success("Valor adicionado");
+  }
+
+  async function removeSample(id: string) {
+    const prev = samples;
+    setSamples((cur) => cur.filter((s) => s.id !== id));
+    const { error } = await supabase.from("physical_samples").delete().eq("id", id);
+    if (error) { setSamples(prev); toast.error("Erro ao remover"); }
+  }
+
   function exportCsv() {
     const header = ["data", "tipo", "local", "gols", "assistencias", "duracao_min"];
     const rows = sorted.map((m) => [
