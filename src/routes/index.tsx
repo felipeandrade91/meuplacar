@@ -60,11 +60,13 @@ export const Route = createFileRoute("/")({
 function Index() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [profile, setProfile] = useState<Profile>({ height_cm: null, weight_kg: null });
+  const [samples, setSamples] = useState<Sample[]>([]);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [confirmDelete, setConfirmDelete] = useState<Match | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [samplesOpen, setSamplesOpen] = useState<null | "calories" | "distance">(null);
   const navigate = useNavigate();
   const todayStr = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
@@ -87,9 +89,10 @@ function Index() {
       setUserEmail(sessionData.session.user.email ?? null);
       const uid = sessionData.session.user.id;
 
-      const [matchesRes, profileRes] = await Promise.all([
+      const [matchesRes, profileRes, samplesRes] = await Promise.all([
         supabase.from("matches").select("*").order("date", { ascending: false }),
         supabase.from("user_profile").select("height_cm, weight_kg").eq("user_id", uid).maybeSingle(),
+        supabase.from("physical_samples").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
       ]);
       if (!active) return;
       if (!matchesRes.error && matchesRes.data) {
@@ -109,6 +112,12 @@ function Index() {
           weight_kg: profileRes.data.weight_kg ? Number(profileRes.data.weight_kg) : null,
         });
       }
+      if (!samplesRes.error && samplesRes.data) {
+        setSamples(samplesRes.data.map((s) => ({
+          id: s.id, kind: s.kind as "calories" | "distance",
+          value: Number(s.value), note: s.note, created_at: s.created_at,
+        })));
+      }
       setLoading(false);
     })();
     return () => { active = false; };
@@ -117,6 +126,10 @@ function Index() {
   // ---- Filtered matches by period ----
   const filteredMatches = useMemo(() => {
     if (period === "all") return matches;
+    if (typeof period === "string" && period.startsWith("m:")) {
+      const key = period.slice(2); // "YYYY-MM"
+      return matches.filter((m) => m.date.startsWith(key));
+    }
     const now = new Date();
     let from: Date;
     if (period === "month") from = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -126,21 +139,48 @@ function Index() {
     return matches.filter((m) => m.date >= fromStr);
   }, [matches, period]);
 
+  // Months available in match history (newest first)
+  const availableMonths = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of matches) set.add(m.date.slice(0, 7));
+    return [...set].sort((a, b) => b.localeCompare(a));
+  }, [matches]);
+
+  // ---- Calorie & distance stats from samples (with fallback) ----
+  const physical = useMemo(() => {
+    const compute = (kind: "calories" | "distance", fallback: number) => {
+      const arr = samples.filter((s) => s.kind === kind).map((s) => s.value);
+      const isDefault = arr.length === 0;
+      const values = isDefault ? [fallback] : arr;
+      const mean = values.reduce((a, b) => a + b, 0) / values.length;
+      const variance = values.length > 1
+        ? values.reduce((a, b) => a + (b - mean) ** 2, 0) / (values.length - 1)
+        : 0;
+      const std = Math.sqrt(variance);
+      return { mean, std, count: arr.length, isDefault };
+    };
+    return {
+      cal: compute("calories", DEFAULT_CAL_PER_GAME),
+      km: compute("distance", DEFAULT_KM_PER_GAME),
+    };
+  }, [samples]);
+
   const stats = useMemo(() => {
     const goals = filteredMatches.reduce((s, m) => s + m.goals, 0);
     const assists = filteredMatches.reduce((s, m) => s + m.assists, 0);
     const games = filteredMatches.length;
     const ga = goals + assists;
     const minutes = filteredMatches.reduce((s, m) => s + (m.duration_minutes || 60), 0);
-    const calories = minutes * CAL_PER_MIN;
+    const calories = games * physical.cal.mean;
+    const km = games * physical.km.mean;
     return {
       goals, assists, games, ga, minutes, calories,
+      km,
       gPerGame: games ? (goals / games).toFixed(2) : "0.00",
       aPerGame: games ? (assists / games).toFixed(2) : "0.00",
       gaPerGame: games ? (ga / games).toFixed(2) : "0.00",
-      calPerGame: games ? Math.round(calories / games) : 0,
     };
-  }, [filteredMatches]);
+  }, [filteredMatches, physical]);
 
   const sorted = useMemo(
     () => [...filteredMatches].sort((a, b) => b.date.localeCompare(a.date)),
