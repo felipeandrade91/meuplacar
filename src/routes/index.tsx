@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X, Film,
-  Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User,
+  Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User, Ruler, Info,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "@tanstack/react-router";
@@ -30,11 +30,21 @@ interface Profile {
   weight_kg: number | null;
 }
 
+interface Sample {
+  id: string;
+  kind: "calories" | "distance";
+  value: number;
+  note: string | null;
+  created_at: string;
+}
+
 const QUINTA_LOCATION = "Quadra Catão Roxo";
 const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-const CAL_PER_MIN = 10; // 600 cal / 60 min
+const MONTH_FULL = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DEFAULT_CAL_PER_GAME = 681.4;
+const DEFAULT_KM_PER_GAME = 4.2575;
 
-type PeriodKey = "all" | "30" | "90" | "year" | "month";
+type PeriodKey = "all" | "30" | "90" | "year" | "month" | `m:${string}`;
 const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
   { key: "all", label: "Todos" },
   { key: "month", label: "Este mês" },
