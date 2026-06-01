@@ -854,6 +854,27 @@ function PhysicalCard({
   );
 }
 
+function PhysicalStatCard({
+  icon, label, value, hint, onEdit, accent,
+}: { icon: React.ReactNode; label: string; value: string; hint?: string; onEdit: () => void; accent?: boolean }) {
+  return (
+    <div className={`relative rounded-xl border p-4 ${accent ? "border-primary/40 bg-primary/5" : "border-border bg-background/40"}`}>
+      <button
+        onClick={onEdit}
+        aria-label="Ver valores brutos"
+        className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+      <p className={`inline-flex items-center gap-1.5 text-xs uppercase tracking-wide ${accent ? "text-primary" : "text-muted-foreground"}`}>
+        {icon} {label}
+      </p>
+      <p className={`mt-1.5 text-2xl font-bold tabular-nums ${accent ? "text-primary" : "text-foreground"}`}>{value}</p>
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
 function BMICard({ bmi, onEdit }: { bmi: { value: number; label: string; tone: "ok" | "warn" | "bad" } | null; onEdit: () => void }) {
   if (!bmi) {
     return (
