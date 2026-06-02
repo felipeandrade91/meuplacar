@@ -534,16 +534,6 @@ function Index() {
               </div>
             </section>
 
-            {/* Month compare */}
-            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
-              <h2 className="mb-4 text-lg font-semibold">Mês atual vs anterior</h2>
-              <div className="grid grid-cols-3 gap-3">
-                <CompareCell label="Gols" cur={monthCompare.current.goals} prev={monthCompare.previous.goals} />
-                <CompareCell label="Assist." cur={monthCompare.current.assists} prev={monthCompare.previous.assists} />
-                <CompareCell label="Partic." cur={monthCompare.current.ga} prev={monthCompare.previous.ga} />
-              </div>
-            </section>
-
             {bestMatches && (
               <section className="mb-8">
                 <div className="mb-3 flex items-center justify-between">
@@ -570,48 +560,6 @@ function Index() {
                 <DistributionDonut d={distribution} />
               </section>
             )}
-
-            {/* Physical performance (last metric section, above CTA) */}
-            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
-              <div className="mb-1 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Performance física</h2>
-                <button
-                  onClick={() => setProfileOpen(true)}
-                  aria-label="Editar perfil"
-                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              </div>
-              <p className="mb-4 inline-flex items-start gap-1.5 text-xs text-muted-foreground">
-                <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                Calorias e km são <strong className="mx-1 font-medium text-foreground">estimativas</strong> baseadas em médias dos seus valores brutos. Adicione mais medições do seu smartwatch para refinar.
-              </p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <PhysicalStatCard
-                  icon={<Flame className="h-4 w-4" />}
-                  label="Calorias gastas"
-                  value={Math.round(stats.calories).toLocaleString("pt-BR")}
-                  hint={`~${physical.cal.mean.toFixed(0)}${physical.cal.std > 0 ? ` ± ${physical.cal.std.toFixed(0)}` : ""} cal / partida${physical.cal.isDefault ? " (padrão)" : ""}`}
-                  onEdit={() => setSamplesOpen("calories")}
-                  accent
-                />
-                <PhysicalStatCard
-                  icon={<Ruler className="h-4 w-4" />}
-                  label="Distância percorrida"
-                  value={`${stats.km.toFixed(1).replace(".", ",")} km`}
-                  hint={`~${physical.km.mean.toFixed(2).replace(".", ",")}${physical.km.std > 0 ? ` ± ${physical.km.std.toFixed(2).replace(".", ",")}` : ""} km / partida${physical.km.isDefault ? " (padrão)" : ""}`}
-                  onEdit={() => setSamplesOpen("distance")}
-                />
-                <PhysicalCard
-                  icon={<Timer className="h-4 w-4" />}
-                  label="Tempo jogado"
-                  value={`${stats.minutes.toLocaleString("pt-BR")} min`}
-                  hint={formatHours(stats.minutes)}
-                />
-                <BMICard bmi={bmi} onEdit={() => setProfileOpen(true)} />
-              </div>
-            </section>
 
             <section className="mb-8">
               <Link
@@ -671,6 +619,58 @@ function Index() {
                 </div>
               </section>
             )}
+
+            {/* Month compare (after monthly chart so all month-related metrics are together) */}
+            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+              <h2 className="mb-4 text-lg font-semibold">Mês atual vs anterior</h2>
+              <div className="grid grid-cols-3 gap-3">
+                <CompareCell label="Gols" cur={monthCompare.current.goals} prev={monthCompare.previous.goals} />
+                <CompareCell label="Assist." cur={monthCompare.current.assists} prev={monthCompare.previous.assists} />
+                <CompareCell label="Partic." cur={monthCompare.current.ga} prev={monthCompare.previous.ga} />
+              </div>
+            </section>
+
+            {/* Physical performance (last metric section, above historical records) */}
+            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+              <div className="mb-1 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Performance física</h2>
+                <button
+                  onClick={() => setProfileOpen(true)}
+                  aria-label="Editar perfil"
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mb-4 inline-flex items-start gap-1.5 text-xs text-muted-foreground">
+                <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                Calorias e km são <strong className="mx-1 font-medium text-foreground">estimativas</strong> baseadas em médias dos seus valores brutos. Adicione mais medições do seu smartwatch para refinar.
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <PhysicalStatCard
+                  icon={<Flame className="h-4 w-4" />}
+                  label="Calorias gastas"
+                  value={Math.round(stats.calories).toLocaleString("pt-BR")}
+                  hint={`~${physical.cal.mean.toFixed(0)}${physical.cal.std > 0 ? ` ± ${physical.cal.std.toFixed(0)}` : ""} cal / partida${physical.cal.isDefault ? " (padrão)" : ""}`}
+                  onEdit={() => setSamplesOpen("calories")}
+                  accent
+                />
+                <PhysicalStatCard
+                  icon={<Ruler className="h-4 w-4" />}
+                  label="Distância percorrida"
+                  value={`${stats.km.toFixed(1).replace(".", ",")} km`}
+                  hint={`~${physical.km.mean.toFixed(2).replace(".", ",")}${physical.km.std > 0 ? ` ± ${physical.km.std.toFixed(2).replace(".", ",")}` : ""} km / partida${physical.km.isDefault ? " (padrão)" : ""}`}
+                  onEdit={() => setSamplesOpen("distance")}
+                />
+                <PhysicalCard
+                  icon={<Timer className="h-4 w-4" />}
+                  label="Tempo jogado"
+                  value={`${stats.minutes.toLocaleString("pt-BR")} min`}
+                  hint={formatHours(stats.minutes)}
+                />
+                <BMICard bmi={bmi} onEdit={() => setProfileOpen(true)} />
+              </div>
+            </section>
 
           </>
         )}
