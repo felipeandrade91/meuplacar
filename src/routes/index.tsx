@@ -305,6 +305,119 @@ function Index() {
     return { total, withGoal, onlyAssist, blank };
   }, [matches]);
 
+  // ===== Victory metrics (a partir de 2026-06-01) =====
+  const resultsMatches = useMemo(
+    () => matches.filter((m) => m.date >= VICTORY_START && matchResult(m) != null),
+    [matches],
+  );
+
+  const filteredResultsMatches = useMemo(
+    () => filteredMatches.filter((m) => m.date >= VICTORY_START && matchResult(m) != null),
+    [filteredMatches],
+  );
+
+  const resultsStats = useMemo(() => {
+    let w = 0, d = 0, l = 0;
+    for (const m of filteredResultsMatches) {
+      const r = matchResult(m);
+      if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
+    }
+    const total = w + d + l;
+    const points = w * 3 + d;
+    const winRate = total ? Math.round((w / total) * 100) : 0;
+    const efficiency = total ? Math.round((points / (total * 3)) * 100) : 0;
+    return { w, d, l, total, points, winRate, efficiency };
+  }, [filteredResultsMatches]);
+
+  const resultSequences = useMemo(() => {
+    const asc = [...resultsMatches].sort((a, b) => a.date.localeCompare(b.date));
+    const compute = (pred: (r: MatchResult) => boolean) => {
+      let best = 0, cur = 0, currentNow = 0;
+      for (const m of asc) {
+        const r = matchResult(m)!;
+        if (pred(r)) { cur += 1; if (cur > best) best = cur; }
+        else cur = 0;
+      }
+      for (let i = asc.length - 1; i >= 0; i--) {
+        const r = matchResult(asc[i])!;
+        if (pred(r)) currentNow += 1; else break;
+      }
+      return { current: currentNow, best };
+    };
+    return {
+      win: compute((r) => r === "W"),
+      unbeaten: compute((r) => r === "W" || r === "D"),
+      loss: compute((r) => r === "L"),
+    };
+  }, [resultsMatches]);
+
+  const resultsDistribution = useMemo(() => {
+    if (!resultsMatches.length) return null;
+    let w = 0, d = 0, l = 0;
+    for (const m of resultsMatches) {
+      const r = matchResult(m);
+      if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
+    }
+    return { total: resultsMatches.length, w, d, l };
+  }, [resultsMatches]);
+
+  const resultsWeekly = useMemo(
+    () =>
+      [...resultsMatches]
+        .filter((m) => m.type === "quinta")
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((m) => {
+          const r = matchResult(m)!;
+          return { date: m.date, wins: r === "W" ? 1 : 0, losses: r === "L" ? 1 : 0 };
+        }),
+    [resultsMatches],
+  );
+
+  const resultsMonthly = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; w: number; d: number; l: number; games: number }>();
+    for (const m of resultsMatches) {
+      const [y, mo] = m.date.split("-");
+      const key = `${y}-${mo}`;
+      const label = `${MONTH_NAMES[Number(mo) - 1]}/${y.slice(2)}`;
+      const cur = map.get(key) ?? { key, label, w: 0, d: 0, l: 0, games: 0 };
+      const r = matchResult(m);
+      if (r === "W") cur.w += 1; else if (r === "D") cur.d += 1; else if (r === "L") cur.l += 1;
+      cur.games += 1;
+      map.set(key, cur);
+    }
+    return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }, [resultsMatches]);
+
+  const bestResultMonth = useMemo(
+    () => resultsMonthly.length
+      ? resultsMonthly.reduce((b, m) => ((m.w * 3 + m.d) > (b.w * 3 + b.d) ? m : b))
+      : null,
+    [resultsMonthly],
+  );
+  const worstResultMonth = useMemo(
+    () => resultsMonthly.length
+      ? resultsMonthly.reduce((w, m) => ((m.w * 3 + m.d) < (w.w * 3 + w.d) ? m : w))
+      : null,
+    [resultsMonthly],
+  );
+
+  const resultsMonthCompare = useMemo(() => {
+    const now = new Date();
+    const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const prevD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prev = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}`;
+    const agg = (k: string) => {
+      const ms = resultsMatches.filter((m) => m.date.startsWith(k));
+      let w = 0, d = 0, l = 0;
+      for (const m of ms) {
+        const r = matchResult(m);
+        if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
+      }
+      return { w, d, l };
+    };
+    return { current: agg(cur), previous: agg(prev) };
+  }, [resultsMatches]);
+
   // ---- BMI ----
   const bmi = useMemo(() => {
     if (!profile.height_cm || !profile.weight_kg) return null;
