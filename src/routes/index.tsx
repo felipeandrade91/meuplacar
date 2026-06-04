@@ -87,6 +87,8 @@ function Index() {
     goals: 0,
     assists: 0,
     duration_minutes: 60,
+    my_team_score: "" as string,
+    opponent_score: "" as string,
   });
 
   useEffect(() => {
@@ -115,6 +117,8 @@ function Index() {
           goals: m.goals,
           assists: m.assists,
           duration_minutes: (m as { duration_minutes?: number }).duration_minutes ?? 60,
+          my_team_score: (m as { my_team_score?: number | null }).my_team_score ?? null,
+          opponent_score: (m as { opponent_score?: number | null }).opponent_score ?? null,
         })));
       }
       if (!profileRes.error && profileRes.data) {
