@@ -324,6 +324,14 @@ function Index() {
     const { data: sessionData } = await supabase.auth.getSession();
     const uid = sessionData.session?.user.id;
     if (!uid) { navigate({ to: "/login" }); return; }
+    const myScoreRaw = form.my_team_score.trim();
+    const oppScoreRaw = form.opponent_score.trim();
+    const hasMy = myScoreRaw !== "";
+    const hasOpp = oppScoreRaw !== "";
+    if (hasMy !== hasOpp) {
+      toast.error("Preencha os dois placares ou deixe ambos em branco");
+      return;
+    }
     const payload = {
       date: form.date,
       type: form.type,
@@ -331,6 +339,8 @@ function Index() {
       goals: Number(form.goals) || 0,
       assists: Number(form.assists) || 0,
       duration_minutes: Math.max(1, Number(form.duration_minutes) || 60),
+      my_team_score: hasMy ? Math.max(0, Math.floor(Number(myScoreRaw))) : null,
+      opponent_score: hasOpp ? Math.max(0, Math.floor(Number(oppScoreRaw))) : null,
       user_id: uid,
     };
     const { data, error } = await supabase.from("matches").insert(payload).select().single();
@@ -339,8 +349,10 @@ function Index() {
         id: data.id, date: data.date, type: data.type as MatchType,
         location: data.location ?? undefined, goals: data.goals, assists: data.assists,
         duration_minutes: (data as { duration_minutes?: number }).duration_minutes ?? 60,
+        my_team_score: (data as { my_team_score?: number | null }).my_team_score ?? null,
+        opponent_score: (data as { opponent_score?: number | null }).opponent_score ?? null,
       }, ...prev]);
-      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0, duration_minutes: 60 });
+      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0, duration_minutes: 60, my_team_score: "", opponent_score: "" });
       toast.success("Jogo registrado");
     } else if (error) {
       toast.error("Não foi possível salvar", { description: error.message });
@@ -355,11 +367,21 @@ function Index() {
     else toast.success("Jogo removido");
   }
 
-  async function saveMatchStats(id: string, goals: number, assists: number) {
+  async function saveMatchStats(
+    id: string,
+    goals: number,
+    assists: number,
+    myScore: number | null,
+    oppScore: number | null,
+  ) {
     const safeG = Math.max(0, Math.floor(goals) || 0);
     const safeA = Math.max(0, Math.floor(assists) || 0);
+    const safeMy = myScore == null ? null : Math.max(0, Math.floor(myScore));
+    const safeOpp = oppScore == null ? null : Math.max(0, Math.floor(oppScore));
     const prev = matches;
-    setMatches((cur) => cur.map((m) => (m.id === id ? { ...m, goals: safeG, assists: safeA } : m)));
+    setMatches((cur) => cur.map((m) => (m.id === id
+      ? { ...m, goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp }
+      : m)));
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session?.user.id) {
       setMatches(prev);
@@ -367,7 +389,9 @@ function Index() {
       navigate({ to: "/login" });
       return false;
     }
-    const { error } = await supabase.from("matches").update({ goals: safeG, assists: safeA }).eq("id", id);
+    const { error } = await supabase.from("matches").update({
+      goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp,
+    }).eq("id", id);
     if (error) { setMatches(prev); toast.error("Erro ao salvar"); return false; }
     toast.success("Jogo atualizado");
     return true;
