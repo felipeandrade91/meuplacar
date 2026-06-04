@@ -1221,28 +1221,60 @@ function MatchRow({
   match, onSave, onRequestRemove,
 }: {
   match: Match;
-  onSave: (id: string, goals: number, assists: number) => Promise<boolean>;
+  onSave: (
+    id: string, goals: number, assists: number,
+    myScore: number | null, oppScore: number | null,
+  ) => Promise<boolean>;
   onRequestRemove: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [goals, setGoals] = useState(match.goals);
   const [assists, setAssists] = useState(match.assists);
+  const [myScore, setMyScore] = useState<string>(match.my_team_score?.toString() ?? "");
+  const [oppScore, setOppScore] = useState<string>(match.opponent_score?.toString() ?? "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!editing) { setGoals(match.goals); setAssists(match.assists); }
-  }, [match.goals, match.assists, editing]);
+    if (!editing) {
+      setGoals(match.goals); setAssists(match.assists);
+      setMyScore(match.my_team_score?.toString() ?? "");
+      setOppScore(match.opponent_score?.toString() ?? "");
+    }
+  }, [match.goals, match.assists, match.my_team_score, match.opponent_score, editing]);
 
   async function handleSave() {
     setSaving(true);
-    const ok = await onSave(match.id, goals, assists);
+    const hasMy = myScore.trim() !== "";
+    const hasOpp = oppScore.trim() !== "";
+    if (hasMy !== hasOpp) {
+      toast.error("Preencha os dois placares ou deixe ambos em branco");
+      setSaving(false);
+      return;
+    }
+    const ok = await onSave(
+      match.id, goals, assists,
+      hasMy ? Number(myScore) : null,
+      hasOpp ? Number(oppScore) : null,
+    );
     setSaving(false);
     if (ok) setEditing(false);
   }
 
   function handleCancel() {
-    setGoals(match.goals); setAssists(match.assists); setEditing(false);
+    setGoals(match.goals); setAssists(match.assists);
+    setMyScore(match.my_team_score?.toString() ?? "");
+    setOppScore(match.opponent_score?.toString() ?? "");
+    setEditing(false);
   }
+
+  const result = matchResult(match);
+  const resultBadge = result === "W"
+    ? { label: "V", cls: "bg-primary/20 text-primary" }
+    : result === "L"
+    ? { label: "D", cls: "bg-destructive/20 text-destructive" }
+    : result === "D"
+    ? { label: "E", cls: "bg-muted text-muted-foreground" }
+    : null;
 
   return (
     <li className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-all hover:border-primary/50 hover:bg-primary/[0.02]">
@@ -1255,8 +1287,28 @@ function MatchRow({
               {match.type === "quinta" ? "Futebol semanal" : "Pelada"}
             </span>
             <span className="ml-1.5 text-xs text-muted-foreground">· {match.duration_minutes}min</span>
+            {resultBadge && !editing && (
+              <span className={`ml-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${resultBadge.cls}`}>
+                {resultBadge.label} {match.my_team_score}–{match.opponent_score}
+              </span>
+            )}
           </p>
           {match.location && <p className="truncate text-xs text-muted-foreground">{match.location}</p>}
+          {editing && (
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+              <span className="text-primary">Meu time</span>
+              <input type="number" min={0} value={myScore}
+                onChange={(e) => setMyScore(e.target.value)}
+                placeholder="—"
+                className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+              <span className="text-muted-foreground">x</span>
+              <input type="number" min={0} value={oppScore}
+                onChange={(e) => setOppScore(e.target.value)}
+                placeholder="—"
+                className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+              <span className="text-muted-foreground">Adversário</span>
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2 text-sm">
