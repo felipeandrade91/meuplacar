@@ -23,6 +23,8 @@ interface Match {
   goals: number;
   assists: number;
   duration_minutes: number;
+  my_team_score?: number | null;
+  opponent_score?: number | null;
 }
 
 interface Profile {
@@ -43,6 +45,15 @@ const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out"
 const MONTH_FULL = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DEFAULT_CAL_PER_GAME = 681.4;
 const DEFAULT_KM_PER_GAME = 4.2575;
+const VICTORY_START = "2026-06-01"; // a partir de junho/2026
+
+type MatchResult = "W" | "D" | "L";
+function matchResult(m: Match): MatchResult | null {
+  if (m.my_team_score == null || m.opponent_score == null) return null;
+  if (m.my_team_score > m.opponent_score) return "W";
+  if (m.my_team_score < m.opponent_score) return "L";
+  return "D";
+}
 
 type PeriodKey = "all" | "30" | "90" | "year" | "month" | `m:${string}`;
 const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
