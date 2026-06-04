@@ -782,6 +782,115 @@ function Index() {
               </div>
             </section>
 
+            {/* ===== Vitórias e derrotas (a partir de jun/2026) ===== */}
+            <section className="mb-8">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Vitórias & derrotas</h2>
+                <span className="rounded-full border border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  desde jun/2026
+                </span>
+              </div>
+              {resultsMatches.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-card p-5 text-sm text-muted-foreground">
+                  Registre o placar do seu time e do adversário em uma partida a partir de jun/2026 para começar a ver as métricas aqui.
+                </div>
+              ) : (
+                <>
+                  <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <StatCard label="Vitórias" value={resultsStats.w} accent />
+                    <StatCard label="Empates" value={resultsStats.d} />
+                    <StatCard label="Derrotas" value={resultsStats.l} />
+                    <StatCard label="Aproveitamento" value={`${resultsStats.efficiency}%`} highlight />
+                  </div>
+                  <div className="mb-6 grid grid-cols-3 gap-3">
+                    <StatCard label="Jogos com placar" value={resultsStats.total} small />
+                    <StatCard label="Taxa de vitória" value={`${resultsStats.winRate}%`} small />
+                    <StatCard label="Pontos (3-1-0)" value={resultsStats.points} small />
+                  </div>
+
+                  <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                    <h3 className="text-base font-semibold">Sequências</h3>
+                    <p className="mb-4 text-xs text-muted-foreground">
+                      Jogos consecutivos vencidos, sem perder ou perdidos. Mostra a sequência atual e o recorde histórico.
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <SequenceCard label="Vitórias" current={resultSequences.win.current} best={resultSequences.win.best} highlight />
+                      <SequenceCard label="Sem perder (V+E)" current={resultSequences.unbeaten.current} best={resultSequences.unbeaten.best} />
+                      <SequenceCard label="Derrotas" current={resultSequences.loss.current} best={resultSequences.loss.best} />
+                    </div>
+                  </div>
+
+                  {resultsDistribution && (
+                    <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                      <h3 className="mb-4 text-base font-semibold">Distribuição dos jogos</h3>
+                      <ResultsDonut d={resultsDistribution} />
+                    </div>
+                  )}
+
+                  {resultsWeekly.length > 1 && (
+                    <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                      <h3 className="mb-1 text-base font-semibold">Evolução no Futebol semanal</h3>
+                      <p className="mb-4 text-xs text-muted-foreground">
+                        Vitórias e derrotas por jogo (1 = sim, 0 = não).
+                      </p>
+                      <ResultsLineChart data={resultsWeekly} />
+                    </div>
+                  )}
+
+                  {resultsMonthly.length > 0 && (
+                    <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                      <h3 className="mb-1 text-base font-semibold">Desempenho por mês</h3>
+                      <p className="mb-4 text-xs text-muted-foreground">Vitórias e derrotas ao longo dos meses</p>
+                      <ResultsBarChart data={resultsMonthly} />
+                      <div className="mt-5 overflow-x-auto">
+                        <table className="w-full min-w-[420px] text-sm">
+                          <thead>
+                            <tr className="text-left text-xs uppercase text-muted-foreground">
+                              <th className="py-2 font-medium">Mês</th>
+                              <th className="py-2 font-medium">Jogos</th>
+                              <th className="py-2 font-medium text-primary">V</th>
+                              <th className="py-2 font-medium">E</th>
+                              <th className="py-2 font-medium text-destructive">D</th>
+                              <th className="py-2 font-medium">Pts</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {resultsMonthly.map((m) => (
+                              <tr key={m.key} className="border-t border-border/60">
+                                <td className="py-2">
+                                  {m.label}
+                                  {bestResultMonth?.key === m.key && (
+                                    <span className="ml-2 rounded-md bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">melhor</span>
+                                  )}
+                                  {worstResultMonth?.key === m.key && bestResultMonth?.key !== m.key && (
+                                    <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">pior</span>
+                                  )}
+                                </td>
+                                <td className="py-2">{m.games}</td>
+                                <td className="py-2 text-primary">{m.w}</td>
+                                <td className="py-2">{m.d}</td>
+                                <td className="py-2 text-destructive">{m.l}</td>
+                                <td className="py-2 font-medium">{m.w * 3 + m.d}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-2xl border border-border bg-card p-5">
+                    <h3 className="mb-4 text-base font-semibold">Mês atual vs anterior</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      <CompareCell label="Vitórias" cur={resultsMonthCompare.current.w} prev={resultsMonthCompare.previous.w} />
+                      <CompareCell label="Empates" cur={resultsMonthCompare.current.d} prev={resultsMonthCompare.previous.d} />
+                      <CompareCell label="Derrotas" cur={resultsMonthCompare.current.l} prev={resultsMonthCompare.previous.l} />
+                    </div>
+                  </div>
+                </>
+              )}
+            </section>
+
             {/* Physical performance (last metric section, above historical records) */}
             <section className="mb-8 rounded-2xl border border-border bg-card p-5">
               <div className="mb-1 flex items-center justify-between">
