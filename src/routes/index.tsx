@@ -1755,3 +1755,161 @@ function MonthlyBarChart({
     </div>
   );
 }
+
+function ResultsDonut({ d }: { d: { total: number; w: number; d: number; l: number } }) {
+  const segs = [
+    { label: "Vitórias", value: d.w, color: "var(--primary)" },
+    { label: "Empates", value: d.d, color: "var(--muted-foreground)" },
+    { label: "Derrotas", value: d.l, color: "var(--destructive)" },
+  ];
+  const size = 140, stroke = 18, r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <div className="flex flex-wrap items-center gap-6">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
+        <circle cx={size/2} cy={size/2} r={r} fill="none" className="stroke-muted" strokeWidth={stroke} />
+        {segs.map((s, i) => {
+          const frac = d.total ? s.value / d.total : 0;
+          const len = frac * c;
+          const dasharray = `${len} ${c - len}`;
+          const dashoffset = -offset;
+          offset += len;
+          return (
+            <circle key={i} cx={size/2} cy={size/2} r={r} fill="none"
+              stroke={s.color} strokeWidth={stroke}
+              strokeDasharray={dasharray} strokeDashoffset={dashoffset}
+              transform={`rotate(-90 ${size/2} ${size/2})`} />
+          );
+        })}
+        <text x={size/2} y={size/2 - 4} textAnchor="middle" className="fill-foreground" style={{ fontSize: 18, fontWeight: 700 }}>
+          {d.total}
+        </text>
+        <text x={size/2} y={size/2 + 14} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>
+          jogos
+        </text>
+      </svg>
+      <div className="flex flex-col gap-2 text-sm">
+        {segs.map((s, i) => {
+          const pct = d.total ? Math.round((s.value / d.total) * 100) : 0;
+          return (
+            <div key={i} className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm" style={{ background: s.color }} />
+              <span className="text-foreground">{s.label}</span>
+              <span className="text-muted-foreground">— {s.value} ({pct}%)</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ResultsLineChart({ data }: { data: { date: string; wins: number; losses: number }[] }) {
+  const width = 600;
+  const height = 240;
+  const padding = { top: 16, right: 16, bottom: 28, left: 28 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+  const maxY = 1;
+  const stepX = data.length > 1 ? innerW / (data.length - 1) : 0;
+  const pointsFor = (key: "wins" | "losses") =>
+    data.map((d, i) => ({
+      x: padding.left + i * stepX,
+      y: padding.top + innerH - (d[key] / maxY) * innerH,
+    }));
+  const winsPts = pointsFor("wins");
+  const lossesPts = pointsFor("losses");
+  const OFFSET = 2.5;
+  const winsAdj = winsPts.map((p, i) => ({ x: p.x, y: data[i].wins === data[i].losses ? p.y - OFFSET : p.y }));
+  const lossesAdj = lossesPts.map((p, i) => ({ x: p.x, y: data[i].wins === data[i].losses ? p.y + OFFSET : p.y }));
+  const toPath = (pts: { x: number; y: number }[]) =>
+    pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  return (
+    <div className="w-full">
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-full bg-primary" /> Vitórias
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-full bg-destructive" /> Derrotas
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Vitórias e derrotas por jogo">
+        {[0, 1].map((t) => {
+          const y = padding.top + innerH - t * innerH;
+          return (
+            <g key={t}>
+              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y}
+                className="stroke-border" strokeDasharray="3 4" strokeWidth={1} />
+              <text x={padding.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+            </g>
+          );
+        })}
+        {data.length > 0 && (
+          <>
+            <text x={padding.left} y={height - 8} className="fill-muted-foreground" style={{ fontSize: 10 }}>{shortDate(data[0].date)}</text>
+            <text x={width - padding.right} y={height - 8} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{shortDate(data[data.length - 1].date)}</text>
+          </>
+        )}
+        <path d={toPath(lossesAdj)} fill="none" className="stroke-destructive" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={toPath(winsAdj)} fill="none" className="stroke-primary" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        {lossesAdj.map((p, i) => (<circle key={`l-${i}`} cx={p.x} cy={p.y} r={3} className="fill-destructive" />))}
+        {winsAdj.map((p, i) => (<circle key={`w-${i}`} cx={p.x} cy={p.y} r={3} className="fill-primary" />))}
+      </svg>
+    </div>
+  );
+}
+
+function ResultsBarChart({
+  data,
+}: {
+  data: { key: string; label: string; w: number; d: number; l: number }[];
+}) {
+  const width = 600;
+  const height = 220;
+  const padding = { top: 16, right: 12, bottom: 32, left: 28 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+  const maxY = Math.max(3, ...data.flatMap((d) => [d.w, d.l]));
+  const groupW = data.length ? innerW / data.length : 0;
+  const barW = Math.min(18, (groupW - 6) / 2);
+  const yTicks = Array.from({ length: maxY + 1 }, (_, i) => i);
+  return (
+    <div className="w-full">
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Vitórias
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-sm bg-destructive" /> Derrotas
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Vitórias e derrotas por mês">
+        {yTicks.map((t) => {
+          const y = padding.top + innerH - (t / maxY) * innerH;
+          return (
+            <g key={t}>
+              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y}
+                className="stroke-border" strokeDasharray="3 4" strokeWidth={1} />
+              <text x={padding.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+            </g>
+          );
+        })}
+        {data.map((d, i) => {
+          const cx = padding.left + i * groupW + groupW / 2;
+          const wH = (d.w / maxY) * innerH;
+          const lH = (d.l / maxY) * innerH;
+          const wx = cx - barW - 1;
+          const lx = cx + 1;
+          return (
+            <g key={d.key}>
+              <rect x={wx} y={padding.top + innerH - wH} width={barW} height={wH} rx={2} className="fill-primary" />
+              <rect x={lx} y={padding.top + innerH - lH} width={barW} height={lH} rx={2} className="fill-destructive" />
+              <text x={cx} y={height - 14} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>{d.label}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
