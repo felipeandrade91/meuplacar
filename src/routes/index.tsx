@@ -23,6 +23,8 @@ interface Match {
   goals: number;
   assists: number;
   duration_minutes: number;
+  my_team_score?: number | null;
+  opponent_score?: number | null;
 }
 
 interface Profile {
@@ -43,6 +45,15 @@ const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out"
 const MONTH_FULL = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DEFAULT_CAL_PER_GAME = 681.4;
 const DEFAULT_KM_PER_GAME = 4.2575;
+const VICTORY_START = "2026-06-01"; // a partir de junho/2026
+
+type MatchResult = "W" | "D" | "L";
+function matchResult(m: Match): MatchResult | null {
+  if (m.my_team_score == null || m.opponent_score == null) return null;
+  if (m.my_team_score > m.opponent_score) return "W";
+  if (m.my_team_score < m.opponent_score) return "L";
+  return "D";
+}
 
 type PeriodKey = "all" | "30" | "90" | "year" | "month" | `m:${string}`;
 const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
@@ -76,6 +87,8 @@ function Index() {
     goals: 0,
     assists: 0,
     duration_minutes: 60,
+    my_team_score: "" as string,
+    opponent_score: "" as string,
   });
 
   useEffect(() => {
@@ -104,6 +117,8 @@ function Index() {
           goals: m.goals,
           assists: m.assists,
           duration_minutes: (m as { duration_minutes?: number }).duration_minutes ?? 60,
+          my_team_score: (m as { my_team_score?: number | null }).my_team_score ?? null,
+          opponent_score: (m as { opponent_score?: number | null }).opponent_score ?? null,
         })));
       }
       if (!profileRes.error && profileRes.data) {
@@ -290,6 +305,119 @@ function Index() {
     return { total, withGoal, onlyAssist, blank };
   }, [matches]);
 
+  // ===== Victory metrics (a partir de 2026-06-01) =====
+  const resultsMatches = useMemo(
+    () => matches.filter((m) => m.date >= VICTORY_START && matchResult(m) != null),
+    [matches],
+  );
+
+  const filteredResultsMatches = useMemo(
+    () => filteredMatches.filter((m) => m.date >= VICTORY_START && matchResult(m) != null),
+    [filteredMatches],
+  );
+
+  const resultsStats = useMemo(() => {
+    let w = 0, d = 0, l = 0;
+    for (const m of filteredResultsMatches) {
+      const r = matchResult(m);
+      if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
+    }
+    const total = w + d + l;
+    const points = w * 3 + d;
+    const winRate = total ? Math.round((w / total) * 100) : 0;
+    const efficiency = total ? Math.round((points / (total * 3)) * 100) : 0;
+    return { w, d, l, total, points, winRate, efficiency };
+  }, [filteredResultsMatches]);
+
+  const resultSequences = useMemo(() => {
+    const asc = [...resultsMatches].sort((a, b) => a.date.localeCompare(b.date));
+    const compute = (pred: (r: MatchResult) => boolean) => {
+      let best = 0, cur = 0, currentNow = 0;
+      for (const m of asc) {
+        const r = matchResult(m)!;
+        if (pred(r)) { cur += 1; if (cur > best) best = cur; }
+        else cur = 0;
+      }
+      for (let i = asc.length - 1; i >= 0; i--) {
+        const r = matchResult(asc[i])!;
+        if (pred(r)) currentNow += 1; else break;
+      }
+      return { current: currentNow, best };
+    };
+    return {
+      win: compute((r) => r === "W"),
+      unbeaten: compute((r) => r === "W" || r === "D"),
+      loss: compute((r) => r === "L"),
+    };
+  }, [resultsMatches]);
+
+  const resultsDistribution = useMemo(() => {
+    if (!resultsMatches.length) return null;
+    let w = 0, d = 0, l = 0;
+    for (const m of resultsMatches) {
+      const r = matchResult(m);
+      if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
+    }
+    return { total: resultsMatches.length, w, d, l };
+  }, [resultsMatches]);
+
+  const resultsWeekly = useMemo(
+    () =>
+      [...resultsMatches]
+        .filter((m) => m.type === "quinta")
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((m) => {
+          const r = matchResult(m)!;
+          return { date: m.date, wins: r === "W" ? 1 : 0, losses: r === "L" ? 1 : 0 };
+        }),
+    [resultsMatches],
+  );
+
+  const resultsMonthly = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; w: number; d: number; l: number; games: number }>();
+    for (const m of resultsMatches) {
+      const [y, mo] = m.date.split("-");
+      const key = `${y}-${mo}`;
+      const label = `${MONTH_NAMES[Number(mo) - 1]}/${y.slice(2)}`;
+      const cur = map.get(key) ?? { key, label, w: 0, d: 0, l: 0, games: 0 };
+      const r = matchResult(m);
+      if (r === "W") cur.w += 1; else if (r === "D") cur.d += 1; else if (r === "L") cur.l += 1;
+      cur.games += 1;
+      map.set(key, cur);
+    }
+    return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }, [resultsMatches]);
+
+  const bestResultMonth = useMemo(
+    () => resultsMonthly.length
+      ? resultsMonthly.reduce((b, m) => ((m.w * 3 + m.d) > (b.w * 3 + b.d) ? m : b))
+      : null,
+    [resultsMonthly],
+  );
+  const worstResultMonth = useMemo(
+    () => resultsMonthly.length
+      ? resultsMonthly.reduce((w, m) => ((m.w * 3 + m.d) < (w.w * 3 + w.d) ? m : w))
+      : null,
+    [resultsMonthly],
+  );
+
+  const resultsMonthCompare = useMemo(() => {
+    const now = new Date();
+    const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const prevD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prev = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}`;
+    const agg = (k: string) => {
+      const ms = resultsMatches.filter((m) => m.date.startsWith(k));
+      let w = 0, d = 0, l = 0;
+      for (const m of ms) {
+        const r = matchResult(m);
+        if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
+      }
+      return { w, d, l };
+    };
+    return { current: agg(cur), previous: agg(prev) };
+  }, [resultsMatches]);
+
   // ---- BMI ----
   const bmi = useMemo(() => {
     if (!profile.height_cm || !profile.weight_kg) return null;
@@ -309,6 +437,14 @@ function Index() {
     const { data: sessionData } = await supabase.auth.getSession();
     const uid = sessionData.session?.user.id;
     if (!uid) { navigate({ to: "/login" }); return; }
+    const myScoreRaw = form.my_team_score.trim();
+    const oppScoreRaw = form.opponent_score.trim();
+    const hasMy = myScoreRaw !== "";
+    const hasOpp = oppScoreRaw !== "";
+    if (hasMy !== hasOpp) {
+      toast.error("Preencha os dois placares ou deixe ambos em branco");
+      return;
+    }
     const payload = {
       date: form.date,
       type: form.type,
@@ -316,6 +452,8 @@ function Index() {
       goals: Number(form.goals) || 0,
       assists: Number(form.assists) || 0,
       duration_minutes: Math.max(1, Number(form.duration_minutes) || 60),
+      my_team_score: hasMy ? Math.max(0, Math.floor(Number(myScoreRaw))) : null,
+      opponent_score: hasOpp ? Math.max(0, Math.floor(Number(oppScoreRaw))) : null,
       user_id: uid,
     };
     const { data, error } = await supabase.from("matches").insert(payload).select().single();
@@ -324,8 +462,10 @@ function Index() {
         id: data.id, date: data.date, type: data.type as MatchType,
         location: data.location ?? undefined, goals: data.goals, assists: data.assists,
         duration_minutes: (data as { duration_minutes?: number }).duration_minutes ?? 60,
+        my_team_score: (data as { my_team_score?: number | null }).my_team_score ?? null,
+        opponent_score: (data as { opponent_score?: number | null }).opponent_score ?? null,
       }, ...prev]);
-      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0, duration_minutes: 60 });
+      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0, duration_minutes: 60, my_team_score: "", opponent_score: "" });
       toast.success("Jogo registrado");
     } else if (error) {
       toast.error("Não foi possível salvar", { description: error.message });
@@ -340,11 +480,21 @@ function Index() {
     else toast.success("Jogo removido");
   }
 
-  async function saveMatchStats(id: string, goals: number, assists: number) {
+  async function saveMatchStats(
+    id: string,
+    goals: number,
+    assists: number,
+    myScore: number | null,
+    oppScore: number | null,
+  ) {
     const safeG = Math.max(0, Math.floor(goals) || 0);
     const safeA = Math.max(0, Math.floor(assists) || 0);
+    const safeMy = myScore == null ? null : Math.max(0, Math.floor(myScore));
+    const safeOpp = oppScore == null ? null : Math.max(0, Math.floor(oppScore));
     const prev = matches;
-    setMatches((cur) => cur.map((m) => (m.id === id ? { ...m, goals: safeG, assists: safeA } : m)));
+    setMatches((cur) => cur.map((m) => (m.id === id
+      ? { ...m, goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp }
+      : m)));
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session?.user.id) {
       setMatches(prev);
@@ -352,7 +502,9 @@ function Index() {
       navigate({ to: "/login" });
       return false;
     }
-    const { error } = await supabase.from("matches").update({ goals: safeG, assists: safeA }).eq("id", id);
+    const { error } = await supabase.from("matches").update({
+      goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp,
+    }).eq("id", id);
     if (error) { setMatches(prev); toast.error("Erro ao salvar"); return false; }
     toast.success("Jogo atualizado");
     return true;
@@ -630,6 +782,115 @@ function Index() {
               </div>
             </section>
 
+            {/* ===== Vitórias e derrotas (a partir de jun/2026) ===== */}
+            <section className="mb-8">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Vitórias & derrotas</h2>
+                <span className="rounded-full border border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  desde jun/2026
+                </span>
+              </div>
+              {resultsMatches.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-card p-5 text-sm text-muted-foreground">
+                  Registre o placar do seu time e do adversário em uma partida a partir de jun/2026 para começar a ver as métricas aqui.
+                </div>
+              ) : (
+                <>
+                  <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <StatCard label="Vitórias" value={resultsStats.w} accent />
+                    <StatCard label="Empates" value={resultsStats.d} />
+                    <StatCard label="Derrotas" value={resultsStats.l} />
+                    <StatCard label="Aproveitamento" value={`${resultsStats.efficiency}%`} highlight />
+                  </div>
+                  <div className="mb-6 grid grid-cols-3 gap-3">
+                    <StatCard label="Jogos com placar" value={resultsStats.total} small />
+                    <StatCard label="Taxa de vitória" value={`${resultsStats.winRate}%`} small />
+                    <StatCard label="Pontos (3-1-0)" value={resultsStats.points} small />
+                  </div>
+
+                  <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                    <h3 className="text-base font-semibold">Sequências</h3>
+                    <p className="mb-4 text-xs text-muted-foreground">
+                      Jogos consecutivos vencidos, sem perder ou perdidos. Mostra a sequência atual e o recorde histórico.
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <SequenceCard label="Vitórias" current={resultSequences.win.current} best={resultSequences.win.best} highlight />
+                      <SequenceCard label="Sem perder (V+E)" current={resultSequences.unbeaten.current} best={resultSequences.unbeaten.best} />
+                      <SequenceCard label="Derrotas" current={resultSequences.loss.current} best={resultSequences.loss.best} />
+                    </div>
+                  </div>
+
+                  {resultsDistribution && (
+                    <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                      <h3 className="mb-4 text-base font-semibold">Distribuição dos jogos</h3>
+                      <ResultsDonut d={resultsDistribution} />
+                    </div>
+                  )}
+
+                  {resultsWeekly.length > 1 && (
+                    <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                      <h3 className="mb-1 text-base font-semibold">Evolução no Futebol semanal</h3>
+                      <p className="mb-4 text-xs text-muted-foreground">
+                        Vitórias e derrotas por jogo (1 = sim, 0 = não).
+                      </p>
+                      <ResultsLineChart data={resultsWeekly} />
+                    </div>
+                  )}
+
+                  {resultsMonthly.length > 0 && (
+                    <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                      <h3 className="mb-1 text-base font-semibold">Desempenho por mês</h3>
+                      <p className="mb-4 text-xs text-muted-foreground">Vitórias e derrotas ao longo dos meses</p>
+                      <ResultsBarChart data={resultsMonthly} />
+                      <div className="mt-5 overflow-x-auto">
+                        <table className="w-full min-w-[420px] text-sm">
+                          <thead>
+                            <tr className="text-left text-xs uppercase text-muted-foreground">
+                              <th className="py-2 font-medium">Mês</th>
+                              <th className="py-2 font-medium">Jogos</th>
+                              <th className="py-2 font-medium text-primary">V</th>
+                              <th className="py-2 font-medium">E</th>
+                              <th className="py-2 font-medium text-destructive">D</th>
+                              <th className="py-2 font-medium">Pts</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {resultsMonthly.map((m) => (
+                              <tr key={m.key} className="border-t border-border/60">
+                                <td className="py-2">
+                                  {m.label}
+                                  {bestResultMonth?.key === m.key && (
+                                    <span className="ml-2 rounded-md bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">melhor</span>
+                                  )}
+                                  {worstResultMonth?.key === m.key && bestResultMonth?.key !== m.key && (
+                                    <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">pior</span>
+                                  )}
+                                </td>
+                                <td className="py-2">{m.games}</td>
+                                <td className="py-2 text-primary">{m.w}</td>
+                                <td className="py-2">{m.d}</td>
+                                <td className="py-2 text-destructive">{m.l}</td>
+                                <td className="py-2 font-medium">{m.w * 3 + m.d}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-2xl border border-border bg-card p-5">
+                    <h3 className="mb-4 text-base font-semibold">Mês atual vs anterior</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      <CompareCell label="Vitórias" cur={resultsMonthCompare.current.w} prev={resultsMonthCompare.previous.w} />
+                      <CompareCell label="Empates" cur={resultsMonthCompare.current.d} prev={resultsMonthCompare.previous.d} />
+                      <CompareCell label="Derrotas" cur={resultsMonthCompare.current.l} prev={resultsMonthCompare.previous.l} />
+                    </div>
+                  </div>
+                </>
+              )}
+            </section>
+
             {/* Physical performance (last metric section, above historical records) */}
             <section className="mb-8 rounded-2xl border border-border bg-card p-5">
               <div className="mb-1 flex items-center justify-between">
@@ -720,6 +981,27 @@ function Index() {
                 onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })}
                 className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
+            <div className="sm:col-span-2 rounded-lg border border-dashed border-border bg-background/30 p-3">
+              <p className="mb-2 text-xs text-muted-foreground">
+                Placar do jogo (opcional, a partir de jun/2026)
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="inline-flex items-center gap-1 text-primary">
+                    <Trophy className="h-3.5 w-3.5" /> Meu time
+                  </span>
+                  <input type="number" min={0} placeholder="Ex: 4" value={form.my_team_score}
+                    onChange={(e) => setForm({ ...form, my_team_score: e.target.value })}
+                    className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+                </label>
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="text-muted-foreground">Adversário</span>
+                  <input type="number" min={0} placeholder="Ex: 2" value={form.opponent_score}
+                    onChange={(e) => setForm({ ...form, opponent_score: e.target.value })}
+                    className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+                </label>
+              </div>
+            </div>
             <button type="submit"
               className="sm:col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-primary-foreground transition-opacity hover:opacity-90">
               <Plus className="h-4 w-4" /> Adicionar jogo
@@ -1161,28 +1443,60 @@ function MatchRow({
   match, onSave, onRequestRemove,
 }: {
   match: Match;
-  onSave: (id: string, goals: number, assists: number) => Promise<boolean>;
+  onSave: (
+    id: string, goals: number, assists: number,
+    myScore: number | null, oppScore: number | null,
+  ) => Promise<boolean>;
   onRequestRemove: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [goals, setGoals] = useState(match.goals);
   const [assists, setAssists] = useState(match.assists);
+  const [myScore, setMyScore] = useState<string>(match.my_team_score?.toString() ?? "");
+  const [oppScore, setOppScore] = useState<string>(match.opponent_score?.toString() ?? "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!editing) { setGoals(match.goals); setAssists(match.assists); }
-  }, [match.goals, match.assists, editing]);
+    if (!editing) {
+      setGoals(match.goals); setAssists(match.assists);
+      setMyScore(match.my_team_score?.toString() ?? "");
+      setOppScore(match.opponent_score?.toString() ?? "");
+    }
+  }, [match.goals, match.assists, match.my_team_score, match.opponent_score, editing]);
 
   async function handleSave() {
     setSaving(true);
-    const ok = await onSave(match.id, goals, assists);
+    const hasMy = myScore.trim() !== "";
+    const hasOpp = oppScore.trim() !== "";
+    if (hasMy !== hasOpp) {
+      toast.error("Preencha os dois placares ou deixe ambos em branco");
+      setSaving(false);
+      return;
+    }
+    const ok = await onSave(
+      match.id, goals, assists,
+      hasMy ? Number(myScore) : null,
+      hasOpp ? Number(oppScore) : null,
+    );
     setSaving(false);
     if (ok) setEditing(false);
   }
 
   function handleCancel() {
-    setGoals(match.goals); setAssists(match.assists); setEditing(false);
+    setGoals(match.goals); setAssists(match.assists);
+    setMyScore(match.my_team_score?.toString() ?? "");
+    setOppScore(match.opponent_score?.toString() ?? "");
+    setEditing(false);
   }
+
+  const result = matchResult(match);
+  const resultBadge = result === "W"
+    ? { label: "V", cls: "bg-primary/20 text-primary" }
+    : result === "L"
+    ? { label: "D", cls: "bg-destructive/20 text-destructive" }
+    : result === "D"
+    ? { label: "E", cls: "bg-muted text-muted-foreground" }
+    : null;
 
   return (
     <li className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-all hover:border-primary/50 hover:bg-primary/[0.02]">
@@ -1195,8 +1509,28 @@ function MatchRow({
               {match.type === "quinta" ? "Futebol semanal" : "Pelada"}
             </span>
             <span className="ml-1.5 text-xs text-muted-foreground">· {match.duration_minutes}min</span>
+            {resultBadge && !editing && (
+              <span className={`ml-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${resultBadge.cls}`}>
+                {resultBadge.label} {match.my_team_score}–{match.opponent_score}
+              </span>
+            )}
           </p>
           {match.location && <p className="truncate text-xs text-muted-foreground">{match.location}</p>}
+          {editing && (
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+              <span className="text-primary">Meu time</span>
+              <input type="number" min={0} value={myScore}
+                onChange={(e) => setMyScore(e.target.value)}
+                placeholder="—"
+                className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+              <span className="text-muted-foreground">x</span>
+              <input type="number" min={0} value={oppScore}
+                onChange={(e) => setOppScore(e.target.value)}
+                placeholder="—"
+                className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+              <span className="text-muted-foreground">Adversário</span>
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2 text-sm">
@@ -1413,6 +1747,164 @@ function MonthlyBarChart({
             <g key={d.key}>
               <rect x={gx} y={padding.top + innerH - gH} width={barW} height={gH} rx={2} className="fill-primary" />
               <rect x={ax} y={padding.top + innerH - aH} width={barW} height={aH} rx={2} className="fill-accent" />
+              <text x={cx} y={height - 14} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>{d.label}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function ResultsDonut({ d }: { d: { total: number; w: number; d: number; l: number } }) {
+  const segs = [
+    { label: "Vitórias", value: d.w, color: "var(--primary)" },
+    { label: "Empates", value: d.d, color: "var(--muted-foreground)" },
+    { label: "Derrotas", value: d.l, color: "var(--destructive)" },
+  ];
+  const size = 140, stroke = 18, r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <div className="flex flex-wrap items-center gap-6">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
+        <circle cx={size/2} cy={size/2} r={r} fill="none" className="stroke-muted" strokeWidth={stroke} />
+        {segs.map((s, i) => {
+          const frac = d.total ? s.value / d.total : 0;
+          const len = frac * c;
+          const dasharray = `${len} ${c - len}`;
+          const dashoffset = -offset;
+          offset += len;
+          return (
+            <circle key={i} cx={size/2} cy={size/2} r={r} fill="none"
+              stroke={s.color} strokeWidth={stroke}
+              strokeDasharray={dasharray} strokeDashoffset={dashoffset}
+              transform={`rotate(-90 ${size/2} ${size/2})`} />
+          );
+        })}
+        <text x={size/2} y={size/2 - 4} textAnchor="middle" className="fill-foreground" style={{ fontSize: 18, fontWeight: 700 }}>
+          {d.total}
+        </text>
+        <text x={size/2} y={size/2 + 14} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>
+          jogos
+        </text>
+      </svg>
+      <div className="flex flex-col gap-2 text-sm">
+        {segs.map((s, i) => {
+          const pct = d.total ? Math.round((s.value / d.total) * 100) : 0;
+          return (
+            <div key={i} className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm" style={{ background: s.color }} />
+              <span className="text-foreground">{s.label}</span>
+              <span className="text-muted-foreground">— {s.value} ({pct}%)</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ResultsLineChart({ data }: { data: { date: string; wins: number; losses: number }[] }) {
+  const width = 600;
+  const height = 240;
+  const padding = { top: 16, right: 16, bottom: 28, left: 28 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+  const maxY = 1;
+  const stepX = data.length > 1 ? innerW / (data.length - 1) : 0;
+  const pointsFor = (key: "wins" | "losses") =>
+    data.map((d, i) => ({
+      x: padding.left + i * stepX,
+      y: padding.top + innerH - (d[key] / maxY) * innerH,
+    }));
+  const winsPts = pointsFor("wins");
+  const lossesPts = pointsFor("losses");
+  const OFFSET = 2.5;
+  const winsAdj = winsPts.map((p, i) => ({ x: p.x, y: data[i].wins === data[i].losses ? p.y - OFFSET : p.y }));
+  const lossesAdj = lossesPts.map((p, i) => ({ x: p.x, y: data[i].wins === data[i].losses ? p.y + OFFSET : p.y }));
+  const toPath = (pts: { x: number; y: number }[]) =>
+    pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  return (
+    <div className="w-full">
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-full bg-primary" /> Vitórias
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-full bg-destructive" /> Derrotas
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Vitórias e derrotas por jogo">
+        {[0, 1].map((t) => {
+          const y = padding.top + innerH - t * innerH;
+          return (
+            <g key={t}>
+              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y}
+                className="stroke-border" strokeDasharray="3 4" strokeWidth={1} />
+              <text x={padding.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+            </g>
+          );
+        })}
+        {data.length > 0 && (
+          <>
+            <text x={padding.left} y={height - 8} className="fill-muted-foreground" style={{ fontSize: 10 }}>{shortDate(data[0].date)}</text>
+            <text x={width - padding.right} y={height - 8} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{shortDate(data[data.length - 1].date)}</text>
+          </>
+        )}
+        <path d={toPath(lossesAdj)} fill="none" className="stroke-destructive" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={toPath(winsAdj)} fill="none" className="stroke-primary" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        {lossesAdj.map((p, i) => (<circle key={`l-${i}`} cx={p.x} cy={p.y} r={3} className="fill-destructive" />))}
+        {winsAdj.map((p, i) => (<circle key={`w-${i}`} cx={p.x} cy={p.y} r={3} className="fill-primary" />))}
+      </svg>
+    </div>
+  );
+}
+
+function ResultsBarChart({
+  data,
+}: {
+  data: { key: string; label: string; w: number; d: number; l: number }[];
+}) {
+  const width = 600;
+  const height = 220;
+  const padding = { top: 16, right: 12, bottom: 32, left: 28 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+  const maxY = Math.max(3, ...data.flatMap((d) => [d.w, d.l]));
+  const groupW = data.length ? innerW / data.length : 0;
+  const barW = Math.min(18, (groupW - 6) / 2);
+  const yTicks = Array.from({ length: maxY + 1 }, (_, i) => i);
+  return (
+    <div className="w-full">
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Vitórias
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-sm bg-destructive" /> Derrotas
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Vitórias e derrotas por mês">
+        {yTicks.map((t) => {
+          const y = padding.top + innerH - (t / maxY) * innerH;
+          return (
+            <g key={t}>
+              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y}
+                className="stroke-border" strokeDasharray="3 4" strokeWidth={1} />
+              <text x={padding.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+            </g>
+          );
+        })}
+        {data.map((d, i) => {
+          const cx = padding.left + i * groupW + groupW / 2;
+          const wH = (d.w / maxY) * innerH;
+          const lH = (d.l / maxY) * innerH;
+          const wx = cx - barW - 1;
+          const lx = cx + 1;
+          return (
+            <g key={d.key}>
+              <rect x={wx} y={padding.top + innerH - wH} width={barW} height={wH} rx={2} className="fill-primary" />
+              <rect x={lx} y={padding.top + innerH - lH} width={barW} height={lH} rx={2} className="fill-destructive" />
               <text x={cx} y={height - 14} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>{d.label}</text>
             </g>
           );
