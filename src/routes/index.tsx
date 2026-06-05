@@ -260,7 +260,6 @@ function Index() {
   const chartData = useMemo(
     () =>
       [...matches]
-        .filter((m) => m.type === "quinta")
         .sort((a, b) => a.date.localeCompare(b.date))
         .map((m) => ({ date: m.date, goals: m.goals, assists: m.assists })),
     [matches],
@@ -547,10 +546,15 @@ function Index() {
   }
 
   function exportCsv() {
-    const header = ["data", "tipo", "local", "gols", "assistencias", "duracao_min"];
-    const rows = sorted.map((m) => [
-      m.date, m.type, m.location ?? "", m.goals, m.assists, m.duration_minutes,
-    ]);
+    const header = ["data", "tipo", "local", "gols", "assistencias", "duracao_min", "meu_time", "adversario", "placar", "resultado"];
+    const rows = sorted.map((m) => {
+      const mine = m.my_team_score;
+      const opp = m.opponent_score;
+      const hasScore = mine !== null && mine !== undefined && opp !== null && opp !== undefined;
+      const placar = hasScore ? `${mine}-${opp}` : "";
+      const resultado = hasScore ? (mine! > opp! ? "V" : mine! < opp! ? "D" : "E") : "";
+      return [m.date, m.type, m.location ?? "", m.goals, m.assists, m.duration_minutes, mine ?? "", opp ?? "", placar, resultado];
+    });
     const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -576,12 +580,14 @@ function Index() {
       <div className="mx-auto max-w-3xl px-5 py-10">
         <header className="mb-10 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-              <Trophy className="h-6 w-6" />
-            </div>
+            <img
+              src="/icon-512.png"
+              alt="Meu Placar"
+              className="h-12 w-12 rounded-2xl ring-1 ring-border shadow-sm"
+            />
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Meu Placar</h1>
-              <p className="text-sm text-muted-foreground">Gols e assistências da temporada</p>
+              <p className="text-sm text-muted-foreground">Gols, assistências e partidas da temporada</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -724,9 +730,9 @@ function Index() {
 
             {chartData.length > 1 && (
               <section className="mb-8 rounded-2xl border border-border bg-card p-5">
-                <h2 className="mb-1 text-lg font-semibold">Evolução no Futebol semanal</h2>
+                <h2 className="mb-1 text-lg font-semibold">Evolução no Futebol</h2>
                 <p className="mb-4 text-xs text-muted-foreground">
-                  Gols e assistências por semana. Quando os valores coincidem, as linhas ficam lado a lado.
+                  Gols e assistências por jogo (futebol semanal e peladas). Quando os valores coincidem, as linhas ficam lado a lado.
                 </p>
                 <LineChart data={chartData} />
               </section>
@@ -829,7 +835,7 @@ function Index() {
 
                   {resultsWeekly.length > 1 && (
                     <div className="mb-6 rounded-2xl border border-border bg-card p-5">
-                      <h3 className="mb-1 text-base font-semibold">Evolução no Futebol semanal</h3>
+                      <h3 className="mb-1 text-base font-semibold">Evolução no Futebol</h3>
                       <p className="mb-4 text-xs text-muted-foreground">
                         Vitórias e derrotas por jogo (1 = sim, 0 = não).
                       </p>
