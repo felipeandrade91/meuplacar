@@ -360,17 +360,6 @@ function Index() {
     return { total: resultsMatches.length, w, d, l };
   }, [resultsMatches]);
 
-  const resultsWeekly = useMemo(
-    () =>
-      [...resultsMatches]
-        .filter((m) => m.type === "quinta")
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .map((m) => {
-          const r = matchResult(m)!;
-          return { date: m.date, wins: r === "W" ? 1 : 0, losses: r === "L" ? 1 : 0 };
-        }),
-    [resultsMatches],
-  );
 
   const resultsMonthly = useMemo(() => {
     const map = new Map<string, { key: string; label: string; w: number; d: number; l: number; games: number }>();
@@ -833,15 +822,6 @@ function Index() {
                     </div>
                   )}
 
-                  {resultsWeekly.length > 1 && (
-                    <div className="mb-6 rounded-2xl border border-border bg-card p-5">
-                      <h3 className="mb-1 text-base font-semibold">Evolução no Futebol</h3>
-                      <p className="mb-4 text-xs text-muted-foreground">
-                        Vitórias e derrotas por jogo (1 = sim, 0 = não).
-                      </p>
-                      <ResultsLineChart data={resultsWeekly} />
-                    </div>
-                  )}
 
                   {resultsMonthly.length > 0 && (
                     <div className="mb-6 rounded-2xl border border-border bg-card p-5">
@@ -1810,61 +1790,6 @@ function ResultsDonut({ d }: { d: { total: number; w: number; d: number; l: numb
   );
 }
 
-function ResultsLineChart({ data }: { data: { date: string; wins: number; losses: number }[] }) {
-  const width = 600;
-  const height = 240;
-  const padding = { top: 16, right: 16, bottom: 28, left: 28 };
-  const innerW = width - padding.left - padding.right;
-  const innerH = height - padding.top - padding.bottom;
-  const maxY = 1;
-  const stepX = data.length > 1 ? innerW / (data.length - 1) : 0;
-  const pointsFor = (key: "wins" | "losses") =>
-    data.map((d, i) => ({
-      x: padding.left + i * stepX,
-      y: padding.top + innerH - (d[key] / maxY) * innerH,
-    }));
-  const winsPts = pointsFor("wins");
-  const lossesPts = pointsFor("losses");
-  const OFFSET = 2.5;
-  const winsAdj = winsPts.map((p, i) => ({ x: p.x, y: data[i].wins === data[i].losses ? p.y - OFFSET : p.y }));
-  const lossesAdj = lossesPts.map((p, i) => ({ x: p.x, y: data[i].wins === data[i].losses ? p.y + OFFSET : p.y }));
-  const toPath = (pts: { x: number; y: number }[]) =>
-    pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  return (
-    <div className="w-full">
-      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
-        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-          <span className="h-2.5 w-2.5 rounded-full bg-primary" /> Vitórias
-        </span>
-        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-          <span className="h-2.5 w-2.5 rounded-full bg-destructive" /> Derrotas
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Vitórias e derrotas por jogo">
-        {[0, 1].map((t) => {
-          const y = padding.top + innerH - t * innerH;
-          return (
-            <g key={t}>
-              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y}
-                className="stroke-border" strokeDasharray="3 4" strokeWidth={1} />
-              <text x={padding.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
-            </g>
-          );
-        })}
-        {data.length > 0 && (
-          <>
-            <text x={padding.left} y={height - 8} className="fill-muted-foreground" style={{ fontSize: 10 }}>{shortDate(data[0].date)}</text>
-            <text x={width - padding.right} y={height - 8} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{shortDate(data[data.length - 1].date)}</text>
-          </>
-        )}
-        <path d={toPath(lossesAdj)} fill="none" className="stroke-destructive" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-        <path d={toPath(winsAdj)} fill="none" className="stroke-primary" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-        {lossesAdj.map((p, i) => (<circle key={`l-${i}`} cx={p.x} cy={p.y} r={3} className="fill-destructive" />))}
-        {winsAdj.map((p, i) => (<circle key={`w-${i}`} cx={p.x} cy={p.y} r={3} className="fill-primary" />))}
-      </svg>
-    </div>
-  );
-}
 
 function ResultsBarChart({
   data,
