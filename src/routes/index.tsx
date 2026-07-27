@@ -1838,13 +1838,13 @@ function shortDate(iso: string) {
   return `${d}/${m}`;
 }
 
-function LineChart({ data }: { data: { date: string; goals: number; assists: number }[] }) {
+function LineChart({ data }: { data: { date: string; goals: number; assists: number; rolling?: number }[] }) {
   const width = 600;
   const height = 240;
   const padding = { top: 16, right: 16, bottom: 28, left: 28 };
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
-  const maxY = Math.max(3, ...data.flatMap((d) => [d.goals, d.assists]));
+  const maxY = Math.max(3, ...data.flatMap((d) => [d.goals, d.assists, d.rolling ?? 0]));
   const stepX = data.length > 1 ? innerW / (data.length - 1) : 0;
   const pointsFor = (key: "goals" | "assists") =>
     data.map((d, i) => ({
@@ -1856,6 +1856,12 @@ function LineChart({ data }: { data: { date: string; goals: number; assists: num
   const OFFSET = 2.5;
   const goalsAdj = goalsPts.map((p, i) => ({ x: p.x, y: data[i].goals === data[i].assists ? p.y - OFFSET : p.y }));
   const assistsAdj = assistsPts.map((p, i) => ({ x: p.x, y: data[i].goals === data[i].assists ? p.y + OFFSET : p.y }));
+  const rollingPts = data.some((d) => typeof d.rolling === "number")
+    ? data.map((d, i) => ({
+        x: padding.left + i * stepX,
+        y: padding.top + innerH - ((d.rolling ?? 0) / maxY) * innerH,
+      }))
+    : null;
   const toPath = (pts: { x: number; y: number }[]) =>
     pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
   const yTicks = Array.from({ length: maxY + 1 }, (_, i) => i);
@@ -1868,6 +1874,12 @@ function LineChart({ data }: { data: { date: string; goals: number; assists: num
         <span className="inline-flex items-center gap-1.5 text-muted-foreground">
           <span className="h-2.5 w-2.5 rounded-full bg-accent" /> Assistências
         </span>
+        {rollingPts && (
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <span className="inline-block h-0 w-4 border-t-2 border-dashed border-foreground/70" />
+            Média móvel G+A (5 jogos)
+          </span>
+        )}
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Gráfico de gols e assistências por semana">
         {yTicks.map((t) => {
@@ -1885,6 +1897,11 @@ function LineChart({ data }: { data: { date: string; goals: number; assists: num
             <text x={padding.left} y={height - 8} className="fill-muted-foreground" style={{ fontSize: 10 }}>{shortDate(data[0].date)}</text>
             <text x={width - padding.right} y={height - 8} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{shortDate(data[data.length - 1].date)}</text>
           </>
+        )}
+        {rollingPts && (
+          <path d={toPath(rollingPts)} fill="none"
+            className="stroke-foreground/70" strokeWidth={1.8}
+            strokeDasharray="5 4" strokeLinejoin="round" strokeLinecap="round" />
         )}
         <path d={toPath(assistsAdj)} fill="none" className="stroke-accent" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
         <path d={toPath(goalsAdj)} fill="none" className="stroke-primary" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
