@@ -846,9 +846,9 @@ function Index() {
               <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
                 <h2 className="mb-1 text-lg font-semibold">Evolução no Futebol</h2>
                 <p className="mb-4 text-xs text-muted-foreground">
-                  Gols e assistências por jogo (futebol semanal e peladas). Quando os valores coincidem, as linhas ficam lado a lado.
+                  Gols e assistências por jogo (futebol semanal e peladas). A linha tracejada é a média móvel de participações (G+A) nos últimos 5 jogos.
                 </p>
-                <LineChart data={chartData} />
+                <LineChart data={chartWithRolling} />
               </section>
             )}
 
