@@ -411,6 +411,69 @@ function Index() {
     return { current: agg(cur), previous: agg(prev) };
   }, [resultsMatches]);
 
+  // ===== Team goal stats (since jun/2026) =====
+  const teamStats = useMemo(() => {
+    const withScore = matches.filter(
+      (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
+    );
+    if (!withScore.length) return null;
+    const teamGoals = withScore.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
+    const oppGoals = withScore.reduce((s, m) => s + (m.opponent_score ?? 0), 0);
+    const myGoalsInThose = withScore.reduce((s, m) => s + m.goals, 0);
+    const games = withScore.length;
+    const withDiff = withScore.map((m) => ({
+      m,
+      diff: (m.my_team_score ?? 0) - (m.opponent_score ?? 0),
+    }));
+    const biggestWinItem = withDiff.reduce((b, c) => (c.diff > b.diff ? c : b));
+    const biggestLossItem = withDiff.reduce((b, c) => (c.diff < b.diff ? c : b));
+    const iScored = withScore.filter((m) => m.goals > 0);
+    const winsWhenIScored = iScored.filter((m) => matchResult(m) === "W").length;
+    return {
+      games,
+      teamGoals,
+      oppGoals,
+      diff: teamGoals - oppGoals,
+      myGoalsInThose,
+      participation: teamGoals > 0 ? (myGoalsInThose / teamGoals) * 100 : 0,
+      avgFor: teamGoals / games,
+      avgAgainst: oppGoals / games,
+      biggestWin: biggestWinItem.diff > 0 ? biggestWinItem : null,
+      biggestLoss: biggestLossItem.diff < 0 ? biggestLossItem : null,
+      iScoredGames: iScored.length,
+      winsWhenIScored,
+      winRateWhenIScored: iScored.length ? (winsWhenIScored / iScored.length) * 100 : 0,
+    };
+  }, [matches]);
+
+  // Rolling 5-match avg of G+A overlaid on line chart
+  const chartWithRolling = useMemo(
+    () =>
+      chartData.map((d, i) => {
+        const from = Math.max(0, i - 4);
+        const win = chartData.slice(from, i + 1);
+        const avg = win.reduce((s, x) => s + x.goals + x.assists, 0) / win.length;
+        return { ...d, rolling: avg };
+      }),
+    [chartData],
+  );
+
+  // Scatter data: team goals (x) × my goals (y)
+  const scatterData = useMemo(
+    () =>
+      matches
+        .filter(
+          (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
+        )
+        .map((m) => ({
+          x: m.my_team_score ?? 0,
+          y: m.goals,
+          date: m.date,
+          result: matchResult(m),
+        })),
+    [matches],
+  );
+
   // ---- BMI ----
   const bmi = useMemo(() => {
     if (!profile.height_cm || !profile.weight_kg) return null;
