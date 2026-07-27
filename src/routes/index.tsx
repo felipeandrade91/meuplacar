@@ -1600,19 +1600,33 @@ function formatDate(iso: string) {
 }
 
 function BestMatchCard({
-  label, value, date, accent, highlight, record,
-}: { label: string; value: number; date: string; accent?: boolean; highlight?: boolean; record?: boolean }) {
+  label, value, date, accent, highlight, record, danger, score,
+}: {
+  label: string; value: number; date: string;
+  accent?: boolean; highlight?: boolean; record?: boolean; danger?: boolean; score?: string;
+}) {
   return (
-    <div className={`relative rounded-2xl border p-4 ${highlight ? "border-primary/40 bg-primary/10" : "border-border bg-card"}`}>
+    <div className={`relative rounded-2xl border p-4 ${
+      highlight ? "border-primary/40 bg-primary/10"
+      : danger ? "border-destructive/40 bg-destructive/10"
+      : "border-border bg-card"
+    }`}>
       {record && (
         <span className="absolute -top-2 -right-2 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground shadow">
           🏆 Recorde
         </span>
       )}
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-2xl font-bold ${accent || highlight ? "text-primary" : "text-foreground"}`}>{value}</p>
+      <p className={`mt-1 text-2xl font-bold ${
+        danger ? "text-destructive"
+        : (accent || highlight) ? "text-primary"
+        : "text-foreground"
+      }`}>
+        {danger ? "-" : ""}{value}
+        {score && <span className="ml-2 text-sm font-normal text-muted-foreground">({score})</span>}
+      </p>
       <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
-        <Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(date)}
+        <Calendar className={`h-3.5 w-3.5 ${danger ? "text-destructive" : "text-primary"}`} /> {formatDate(date)}
       </p>
     </div>
   );
