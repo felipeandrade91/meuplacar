@@ -946,12 +946,81 @@ function Index() {
                     </div>
                   )}
 
+                  {teamStats && (
+                    <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
+                      <h3 className="mb-1 text-base font-semibold">Gols do time</h3>
+                      <p className="mb-4 text-xs text-muted-foreground">
+                        Estatísticas de placar considerando jogos com o placar registrado.
+                      </p>
+                      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <StatCard label="Gols pró" value={teamStats.teamGoals} accent />
+                        <StatCard label="Gols contra" value={teamStats.oppGoals} />
+                        <StatCard
+                          label="Saldo"
+                          value={`${teamStats.diff > 0 ? "+" : ""}${teamStats.diff}`}
+                          highlight
+                        />
+                        <StatCard
+                          label="Sua participação"
+                          value={`${teamStats.participation.toFixed(0)}%`}
+                          small
+                        />
+                      </div>
+                      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <StatCard
+                          label="Gols pró / jogo"
+                          value={teamStats.avgFor.toFixed(2)}
+                          small
+                        />
+                        <StatCard
+                          label="Gols contra / jogo"
+                          value={teamStats.avgAgainst.toFixed(2)}
+                          small
+                        />
+                        <StatCard
+                          label="Vitórias c/ você marcando"
+                          value={`${teamStats.winRateWhenIScored.toFixed(0)}%`}
+                          small
+                          accent
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {teamStats.biggestWin && (
+                          <BestMatchCard
+                            label="Maior goleada aplicada"
+                            value={teamStats.biggestWin.diff}
+                            date={teamStats.biggestWin.m.date}
+                            accent
+                            score={`${teamStats.biggestWin.m.my_team_score}–${teamStats.biggestWin.m.opponent_score}`}
+                          />
+                        )}
+                        {teamStats.biggestLoss && (
+                          <BestMatchCard
+                            label="Maior goleada sofrida"
+                            value={Math.abs(teamStats.biggestLoss.diff)}
+                            date={teamStats.biggestLoss.m.date}
+                            danger
+                            score={`${teamStats.biggestLoss.m.my_team_score}–${teamStats.biggestLoss.m.opponent_score}`}
+                          />
+                        )}
+                      </div>
+                      {scatterData.length > 1 && (
+                        <div className="mt-6">
+                          <h4 className="mb-1 text-sm font-semibold">Correlação time × você</h4>
+                          <p className="mb-3 text-xs text-muted-foreground">
+                            Cada ponto é uma partida: eixo X = gols do time, eixo Y = seus gols.
+                          </p>
+                          <ScatterChart data={scatterData} />
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {resultsMonthly.length > 0 && (
                     <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
                       <h3 className="mb-1 text-base font-semibold">Desempenho por mês</h3>
-                      <p className="mb-4 text-xs text-muted-foreground">Vitórias e derrotas ao longo dos meses</p>
-                      <ResultsBarChart data={resultsMonthly} />
+                      <p className="mb-4 text-xs text-muted-foreground">Vitórias, empates e derrotas empilhados por mês</p>
+                      <StackedResultsBarChart data={resultsMonthly} />
                       <div className="mt-5 overflow-x-auto">
                         <table className="w-full min-w-[420px] text-sm">
                           <thead>
