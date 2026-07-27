@@ -797,10 +797,9 @@ function Index() {
                     <StatCard label="Derrotas" value={resultsStats.l} />
                     <StatCard label="Aproveitamento" value={`${resultsStats.efficiency}%`} highlight />
                   </div>
-                  <div className="mb-6 grid grid-cols-3 gap-3">
+                  <div className="mb-6 grid grid-cols-2 gap-3">
                     <StatCard label="Jogos com placar" value={resultsStats.total} small />
-                    <StatCard label="Taxa de vitória" value={`${resultsStats.winRate}%`} small />
-                    <StatCard label="Pontos (3-1-0)" value={resultsStats.points} small />
+                    <StatCard label="Pontos (3-1-0)" value={`${resultsStats.points}/${resultsStats.total * 3}`} small />
                   </div>
 
                   <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
