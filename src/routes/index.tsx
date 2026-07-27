@@ -2017,6 +2017,110 @@ function MonthlyBarChart({
   );
 }
 
+function YearSummaryDialog({
+  open, onOpenChange, summary,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  summary: {
+    year: number; games: number; goals: number; assists: number; ga: number;
+    minutes: number; gPerGame: number; aPerGame: number;
+    best: Match; bestMonthLabel: string;
+    resultsTotal: number; w: number; d: number; l: number;
+  } | null;
+}) {
+  async function shareSummary() {
+    if (!summary) return;
+    const text =
+      `⚽ Meu Placar — Temporada ${summary.year}\n` +
+      `${summary.games} jogos · ${summary.goals} gols · ${summary.assists} assistências (${summary.ga} participações)\n` +
+      `Melhor mês: ${summary.bestMonthLabel}\n` +
+      (summary.resultsTotal ? `Resultados: ${summary.w}V ${summary.d}E ${summary.l}D\n` : "") +
+      `Melhor partida: ${summary.best.goals}G + ${summary.best.assists}A em ${formatDate(summary.best.date)}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "Meu Placar", text }); } catch { /* ignored */ }
+    } else if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      toast.success("Resumo copiado!");
+    }
+  }
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            <span className="inline-flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" /> Resumo de {summary?.year ?? ""}
+            </span>
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Sua temporada em números — pronto para imprimir ou compartilhar.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {summary && (
+          <div className="my-2 space-y-4 rounded-xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 to-transparent p-5">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-3xl font-bold text-primary">{summary.goals}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">gols</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-accent">{summary.assists}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">assistências</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-foreground">{summary.games}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">jogos</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">G+A por jogo</p>
+                <p className="mt-0.5 text-lg font-semibold tabular-nums">
+                  {(summary.gPerGame + summary.aPerGame).toFixed(2)}
+                </p>
+              </div>
+              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Melhor mês</p>
+                <p className="mt-0.5 text-lg font-semibold">{summary.bestMonthLabel}</p>
+              </div>
+              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Minutos jogados</p>
+                <p className="mt-0.5 text-lg font-semibold tabular-nums">
+                  {summary.minutes.toLocaleString("pt-BR")}
+                </p>
+              </div>
+              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Melhor partida</p>
+                <p className="mt-0.5 text-lg font-semibold tabular-nums">
+                  {summary.best.goals}G + {summary.best.assists}A
+                </p>
+                <p className="text-[10px] text-muted-foreground">{formatDate(summary.best.date)}</p>
+              </div>
+            </div>
+            {summary.resultsTotal > 0 && (
+              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Resultados</p>
+                <div className="flex items-center gap-3 text-sm font-semibold tabular-nums">
+                  <span className="text-primary">{summary.w} V</span>
+                  <span className="text-muted-foreground">{summary.d} E</span>
+                  <span className="text-destructive">{summary.l} D</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Fechar</AlertDialogCancel>
+          <AlertDialogAction onClick={(e) => { e.preventDefault(); shareSummary(); }}>
+            <Share2 className="mr-1.5 h-3.5 w-3.5" /> Compartilhar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function ResultsDonut({ d }: { d: { total: number; w: number; d: number; l: number } }) {
   const segs = [
     { label: "Vitórias", value: d.w, color: "var(--primary)" },
