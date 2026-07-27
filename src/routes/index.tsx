@@ -1679,7 +1679,7 @@ function BestMatchCard({
 }
 
 function MatchRow({
-  match, onSave, onRequestRemove,
+  match, onSave, onRequestRemove, compact,
 }: {
   match: Match;
   onSave: (
@@ -1687,6 +1687,7 @@ function MatchRow({
     myScore: number | null, oppScore: number | null,
   ) => Promise<boolean>;
   onRequestRemove: () => void;
+  compact?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [goals, setGoals] = useState(match.goals);
@@ -1738,23 +1739,27 @@ function MatchRow({
     : null;
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border-2 border-border bg-card px-4 py-3 transition-all hover:border-primary/50 hover:bg-primary/[0.02]">
+    <li className={`flex items-center justify-between gap-3 rounded-xl border-2 border-border bg-card transition-all hover:border-primary/50 hover:bg-primary/[0.02] ${compact ? "px-3 py-1.5" : "px-4 py-3"}`}>
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+        {!compact && <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />}
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">
+          <p className={`truncate font-medium ${compact ? "text-xs" : "text-sm"}`}>
             {formatDate(match.date)}
-            <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
-              {match.type === "quinta" ? "Futebol semanal" : "Pelada"}
-            </span>
-            <span className="ml-1.5 text-xs text-muted-foreground">· {match.duration_minutes}min</span>
+            {!compact && (
+              <>
+                <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
+                  {match.type === "quinta" ? "Futebol semanal" : "Pelada"}
+                </span>
+                <span className="ml-1.5 text-xs text-muted-foreground">· {match.duration_minutes}min</span>
+              </>
+            )}
             {resultBadge && !editing && (
               <span className={`ml-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${resultBadge.cls}`}>
                 {resultBadge.label} {match.my_team_score}–{match.opponent_score}
               </span>
             )}
           </p>
-          {match.location && <p className="truncate text-xs text-muted-foreground">{match.location}</p>}
+          {match.location && !compact && <p className="truncate text-xs text-muted-foreground">{match.location}</p>}
           {editing && (
             <div className="mt-1.5 flex items-center gap-1.5 text-xs">
               <span className="text-primary">Meu time</span>
