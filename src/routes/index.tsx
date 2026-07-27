@@ -4,6 +4,7 @@ import {
   Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X, Film,
   Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User, Ruler, Info,
 } from "lucide-react";
+import { Search, Rows3, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -78,6 +79,10 @@ function Index() {
   const [confirmDelete, setConfirmDelete] = useState<Match | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [samplesOpen, setSamplesOpen] = useState<null | "calories" | "distance">(null);
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyFilter, setHistoryFilter] = useState<"all" | "quinta" | "pelada" | "W" | "D" | "L">("all");
+  const [compactHistory, setCompactHistory] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const navigate = useNavigate();
   const todayStr = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
