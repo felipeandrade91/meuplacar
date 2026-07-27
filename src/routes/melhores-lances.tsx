@@ -95,7 +95,7 @@ function HighlightsPage() {
           </div>
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Voltar
           </Link>
@@ -125,7 +125,7 @@ function HighlightsPage() {
             {[0,1].map((i) => <Skeleton key={i} className="aspect-video w-full rounded-2xl" />)}
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+          <div className="rounded-2xl border-2 border-dashed border-border bg-card p-8 text-center">
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
               <Film className="h-7 w-7" />
             </div>
@@ -137,7 +137,7 @@ function HighlightsPage() {
         ) : (
           <ul className="grid gap-5 sm:grid-cols-2">
             {items.map((h) => (
-              <li key={h.id} className="overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/50">
+              <li key={h.id} className="overflow-hidden rounded-2xl border-2 border-border bg-card transition-colors hover:border-primary/50">
                 <video
                   src={h.url}
                   controls
@@ -246,7 +246,7 @@ function UploadForm({ onCancel, onUploaded }: { onCancel: () => void; onUploaded
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-border bg-card p-5"
+      className="rounded-2xl border-2 border-border bg-card p-5"
     >
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Novo lance</h2>
@@ -269,7 +269,7 @@ function UploadForm({ onCancel, onUploaded }: { onCancel: () => void; onUploaded
             placeholder="Ex: Golaço de bicicleta"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary"
+            className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary"
           />
         </label>
         <label className="flex flex-col gap-1.5 text-sm">
@@ -279,7 +279,7 @@ function UploadForm({ onCancel, onUploaded }: { onCancel: () => void; onUploaded
             required
             value={recordedOn}
             onChange={(e) => setRecordedOn(e.target.value)}
-            className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary"
+            className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary"
           />
         </label>
         <label className="flex flex-col gap-1.5 text-sm">
@@ -289,7 +289,7 @@ function UploadForm({ onCancel, onUploaded }: { onCancel: () => void; onUploaded
             accept="video/*"
             required
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="rounded-lg border border-border bg-input/40 px-3 py-2 text-sm text-foreground outline-none file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-secondary-foreground"
+            className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-sm text-foreground outline-none file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-secondary-foreground"
           />
         </label>
         <button
