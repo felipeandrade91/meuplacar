@@ -1191,21 +1191,65 @@ function Index() {
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Histórico</h2>
-            {sorted.length > 0 && (
-              <button onClick={exportCsv}
-                className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
-                <Download className="h-3.5 w-3.5" /> Exportar CSV
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {yearSummary && (
+                <button onClick={() => setSummaryOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md border-2 border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/20">
+                  <Sparkles className="h-3.5 w-3.5" /> Resumo do ano
+                </button>
+              )}
+              {sorted.length > 0 && (
+                <button onClick={() => setCompactHistory((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  title={compactHistory ? "Modo detalhado" : "Modo compacto"}>
+                  <Rows3 className="h-3.5 w-3.5" /> {compactHistory ? "Detalhado" : "Compacto"}
+                </button>
+              )}
+              {sorted.length > 0 && (
+                <button onClick={exportCsv}
+                  className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+                  <Download className="h-3.5 w-3.5" /> Exportar CSV
+                </button>
+              )}
+            </div>
           </div>
+          {sorted.length > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={historyQuery}
+                  onChange={(e) => setHistoryQuery(e.target.value)}
+                  placeholder="Buscar por data ou local…"
+                  className="w-full rounded-lg border-2 border-border bg-input/40 py-1.5 pl-8 pr-3 text-sm text-foreground outline-none focus:border-primary"
+                />
+              </div>
+              <select
+                value={historyFilter}
+                onChange={(e) => setHistoryFilter(e.target.value as typeof historyFilter)}
+                className="rounded-lg border-2 border-border bg-input/40 px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+              >
+                <option value="all">Todos os tipos</option>
+                <option value="quinta">Futebol semanal</option>
+                <option value="pelada">Pelada</option>
+                <option value="W">Só vitórias</option>
+                <option value="D">Só empates</option>
+                <option value="L">Só derrotas</option>
+              </select>
+            </div>
+          )}
           {sorted.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {matches.length === 0 ? "Nenhum jogo registrado ainda." : "Nenhum jogo neste período."}
             </p>
+          ) : historySorted.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum jogo com esses filtros.</p>
           ) : (
             <ul className="space-y-2">
-              {sorted.map((m) => (
+              {historySorted.map((m) => (
                 <MatchRow key={m.id} match={m}
+                  compact={compactHistory}
                   onSave={saveMatchStats}
                   onRequestRemove={() => setConfirmDelete(m)} />
               ))}
@@ -1255,6 +1299,8 @@ function Index() {
         onAdd={(v, n) => samplesOpen && addSample(samplesOpen, v, n)}
         onRemove={removeSample}
       />
+
+      <YearSummaryDialog open={summaryOpen} onOpenChange={setSummaryOpen} summary={yearSummary} />
     </main>
   );
 }
