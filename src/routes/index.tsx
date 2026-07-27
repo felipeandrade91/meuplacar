@@ -207,6 +207,63 @@ function Index() {
     [filteredMatches],
   );
 
+  // History search & filter (applied on top of the period-filtered list)
+  const historySorted = useMemo(() => {
+    const q = historyQuery.trim().toLowerCase();
+    return sorted.filter((m) => {
+      if (historyFilter === "quinta" || historyFilter === "pelada") {
+        if (m.type !== historyFilter) return false;
+      } else if (historyFilter === "W" || historyFilter === "D" || historyFilter === "L") {
+        if (matchResult(m) !== historyFilter) return false;
+      }
+      if (q) {
+        const hay = `${formatDate(m.date)} ${m.location ?? ""} ${
+          m.type === "quinta" ? "futebol semanal" : "pelada"
+        }`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [sorted, historyQuery, historyFilter]);
+
+  // Year summary (Spotify Wrapped style — always uses current calendar year)
+  const yearSummary = useMemo(() => {
+    const year = new Date().getFullYear();
+    const ms = matches.filter((m) => m.date.startsWith(String(year)));
+    if (!ms.length) return null;
+    const goals = ms.reduce((s, m) => s + m.goals, 0);
+    const assists = ms.reduce((s, m) => s + m.assists, 0);
+    const minutes = ms.reduce((s, m) => s + (m.duration_minutes || 60), 0);
+    const byGA = ms.reduce((b, m) => (m.goals + m.assists > b.goals + b.assists ? m : b));
+    // best month by G+A
+    const mmap = new Map<string, { goals: number; assists: number; games: number }>();
+    for (const m of ms) {
+      const k = m.date.slice(5, 7);
+      const cur = mmap.get(k) ?? { goals: 0, assists: 0, games: 0 };
+      cur.goals += m.goals; cur.assists += m.assists; cur.games += 1;
+      mmap.set(k, cur);
+    }
+    let bestMonthK = ""; let bestVal = -1;
+    for (const [k, v] of mmap) {
+      if (v.goals + v.assists > bestVal) { bestVal = v.goals + v.assists; bestMonthK = k; }
+    }
+    const withResult = ms.filter((m) => matchResult(m) != null);
+    let w = 0, d = 0, l = 0;
+    for (const m of withResult) {
+      const r = matchResult(m);
+      if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
+    }
+    return {
+      year, games: ms.length, goals, assists, ga: goals + assists,
+      minutes,
+      gPerGame: goals / ms.length,
+      aPerGame: assists / ms.length,
+      best: byGA,
+      bestMonthLabel: bestMonthK ? MONTH_FULL[Number(bestMonthK) - 1] : "—",
+      resultsTotal: withResult.length, w, d, l,
+    };
+  }, [matches]);
+
   // ---- Sequences (based on all-time, chronological asc) ----
   const sequences = useMemo(() => {
     const asc = [...matches].sort((a, b) => a.date.localeCompare(b.date));
