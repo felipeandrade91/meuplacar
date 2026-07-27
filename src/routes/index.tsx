@@ -4,6 +4,7 @@ import {
   Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X, Film,
   Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User, Ruler, Info,
 } from "lucide-react";
+import { Search, Rows3, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -78,6 +79,10 @@ function Index() {
   const [confirmDelete, setConfirmDelete] = useState<Match | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [samplesOpen, setSamplesOpen] = useState<null | "calories" | "distance">(null);
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyFilter, setHistoryFilter] = useState<"all" | "quinta" | "pelada" | "W" | "D" | "L">("all");
+  const [compactHistory, setCompactHistory] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const navigate = useNavigate();
   const todayStr = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
@@ -201,6 +206,63 @@ function Index() {
     () => [...filteredMatches].sort((a, b) => b.date.localeCompare(a.date)),
     [filteredMatches],
   );
+
+  // History search & filter (applied on top of the period-filtered list)
+  const historySorted = useMemo(() => {
+    const q = historyQuery.trim().toLowerCase();
+    return sorted.filter((m) => {
+      if (historyFilter === "quinta" || historyFilter === "pelada") {
+        if (m.type !== historyFilter) return false;
+      } else if (historyFilter === "W" || historyFilter === "D" || historyFilter === "L") {
+        if (matchResult(m) !== historyFilter) return false;
+      }
+      if (q) {
+        const hay = `${formatDate(m.date)} ${m.location ?? ""} ${
+          m.type === "quinta" ? "futebol semanal" : "pelada"
+        }`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [sorted, historyQuery, historyFilter]);
+
+  // Year summary (Spotify Wrapped style — always uses current calendar year)
+  const yearSummary = useMemo(() => {
+    const year = new Date().getFullYear();
+    const ms = matches.filter((m) => m.date.startsWith(String(year)));
+    if (!ms.length) return null;
+    const goals = ms.reduce((s, m) => s + m.goals, 0);
+    const assists = ms.reduce((s, m) => s + m.assists, 0);
+    const minutes = ms.reduce((s, m) => s + (m.duration_minutes || 60), 0);
+    const byGA = ms.reduce((b, m) => (m.goals + m.assists > b.goals + b.assists ? m : b));
+    // best month by G+A
+    const mmap = new Map<string, { goals: number; assists: number; games: number }>();
+    for (const m of ms) {
+      const k = m.date.slice(5, 7);
+      const cur = mmap.get(k) ?? { goals: 0, assists: 0, games: 0 };
+      cur.goals += m.goals; cur.assists += m.assists; cur.games += 1;
+      mmap.set(k, cur);
+    }
+    let bestMonthK = ""; let bestVal = -1;
+    for (const [k, v] of mmap) {
+      if (v.goals + v.assists > bestVal) { bestVal = v.goals + v.assists; bestMonthK = k; }
+    }
+    const withResult = ms.filter((m) => matchResult(m) != null);
+    let w = 0, d = 0, l = 0;
+    for (const m of withResult) {
+      const r = matchResult(m);
+      if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
+    }
+    return {
+      year, games: ms.length, goals, assists, ga: goals + assists,
+      minutes,
+      gPerGame: goals / ms.length,
+      aPerGame: assists / ms.length,
+      best: byGA,
+      bestMonthLabel: bestMonthK ? MONTH_FULL[Number(bestMonthK) - 1] : "—",
+      resultsTotal: withResult.length, w, d, l,
+    };
+  }, [matches]);
 
   // ---- Sequences (based on all-time, chronological asc) ----
   const sequences = useMemo(() => {
@@ -405,6 +467,69 @@ function Index() {
     };
     return { current: agg(cur), previous: agg(prev) };
   }, [resultsMatches]);
+
+  // ===== Team goal stats (since jun/2026) =====
+  const teamStats = useMemo(() => {
+    const withScore = matches.filter(
+      (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
+    );
+    if (!withScore.length) return null;
+    const teamGoals = withScore.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
+    const oppGoals = withScore.reduce((s, m) => s + (m.opponent_score ?? 0), 0);
+    const myGoalsInThose = withScore.reduce((s, m) => s + m.goals, 0);
+    const games = withScore.length;
+    const withDiff = withScore.map((m) => ({
+      m,
+      diff: (m.my_team_score ?? 0) - (m.opponent_score ?? 0),
+    }));
+    const biggestWinItem = withDiff.reduce((b, c) => (c.diff > b.diff ? c : b));
+    const biggestLossItem = withDiff.reduce((b, c) => (c.diff < b.diff ? c : b));
+    const iScored = withScore.filter((m) => m.goals > 0);
+    const winsWhenIScored = iScored.filter((m) => matchResult(m) === "W").length;
+    return {
+      games,
+      teamGoals,
+      oppGoals,
+      diff: teamGoals - oppGoals,
+      myGoalsInThose,
+      participation: teamGoals > 0 ? (myGoalsInThose / teamGoals) * 100 : 0,
+      avgFor: teamGoals / games,
+      avgAgainst: oppGoals / games,
+      biggestWin: biggestWinItem.diff > 0 ? biggestWinItem : null,
+      biggestLoss: biggestLossItem.diff < 0 ? biggestLossItem : null,
+      iScoredGames: iScored.length,
+      winsWhenIScored,
+      winRateWhenIScored: iScored.length ? (winsWhenIScored / iScored.length) * 100 : 0,
+    };
+  }, [matches]);
+
+  // Rolling 5-match avg of G+A overlaid on line chart
+  const chartWithRolling = useMemo(
+    () =>
+      chartData.map((d, i) => {
+        const from = Math.max(0, i - 4);
+        const win = chartData.slice(from, i + 1);
+        const avg = win.reduce((s, x) => s + x.goals + x.assists, 0) / win.length;
+        return { ...d, rolling: avg };
+      }),
+    [chartData],
+  );
+
+  // Scatter data: team goals (x) × my goals (y)
+  const scatterData = useMemo(
+    () =>
+      matches
+        .filter(
+          (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
+        )
+        .map((m) => ({
+          x: m.my_team_score ?? 0,
+          y: m.goals,
+          date: m.date,
+          result: matchResult(m),
+        })),
+    [matches],
+  );
 
   // ---- BMI ----
   const bmi = useMemo(() => {
@@ -721,9 +846,9 @@ function Index() {
               <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
                 <h2 className="mb-1 text-lg font-semibold">Evolução no Futebol</h2>
                 <p className="mb-4 text-xs text-muted-foreground">
-                  Gols e assistências por jogo (futebol semanal e peladas). Quando os valores coincidem, as linhas ficam lado a lado.
+                  Gols e assistências por jogo (futebol semanal e peladas). A linha tracejada é a média móvel de participações (G+A) nos últimos 5 jogos.
                 </p>
-                <LineChart data={chartData} />
+                <LineChart data={chartWithRolling} />
               </section>
             )}
 
@@ -821,12 +946,81 @@ function Index() {
                     </div>
                   )}
 
+                  {teamStats && (
+                    <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
+                      <h3 className="mb-1 text-base font-semibold">Gols do time</h3>
+                      <p className="mb-4 text-xs text-muted-foreground">
+                        Estatísticas de placar considerando jogos com o placar registrado.
+                      </p>
+                      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <StatCard label="Gols pró" value={teamStats.teamGoals} accent />
+                        <StatCard label="Gols contra" value={teamStats.oppGoals} />
+                        <StatCard
+                          label="Saldo"
+                          value={`${teamStats.diff > 0 ? "+" : ""}${teamStats.diff}`}
+                          highlight
+                        />
+                        <StatCard
+                          label="Sua participação"
+                          value={`${teamStats.participation.toFixed(0)}%`}
+                          small
+                        />
+                      </div>
+                      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <StatCard
+                          label="Gols pró / jogo"
+                          value={teamStats.avgFor.toFixed(2)}
+                          small
+                        />
+                        <StatCard
+                          label="Gols contra / jogo"
+                          value={teamStats.avgAgainst.toFixed(2)}
+                          small
+                        />
+                        <StatCard
+                          label="Vitórias c/ você marcando"
+                          value={`${teamStats.winRateWhenIScored.toFixed(0)}%`}
+                          small
+                          accent
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {teamStats.biggestWin && (
+                          <BestMatchCard
+                            label="Maior goleada aplicada"
+                            value={teamStats.biggestWin.diff}
+                            date={teamStats.biggestWin.m.date}
+                            accent
+                            score={`${teamStats.biggestWin.m.my_team_score}–${teamStats.biggestWin.m.opponent_score}`}
+                          />
+                        )}
+                        {teamStats.biggestLoss && (
+                          <BestMatchCard
+                            label="Maior goleada sofrida"
+                            value={Math.abs(teamStats.biggestLoss.diff)}
+                            date={teamStats.biggestLoss.m.date}
+                            danger
+                            score={`${teamStats.biggestLoss.m.my_team_score}–${teamStats.biggestLoss.m.opponent_score}`}
+                          />
+                        )}
+                      </div>
+                      {scatterData.length > 1 && (
+                        <div className="mt-6">
+                          <h4 className="mb-1 text-sm font-semibold">Correlação time × você</h4>
+                          <p className="mb-3 text-xs text-muted-foreground">
+                            Cada ponto é uma partida: eixo X = gols do time, eixo Y = seus gols.
+                          </p>
+                          <ScatterChart data={scatterData} />
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {resultsMonthly.length > 0 && (
                     <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
                       <h3 className="mb-1 text-base font-semibold">Desempenho por mês</h3>
-                      <p className="mb-4 text-xs text-muted-foreground">Vitórias e derrotas ao longo dos meses</p>
-                      <ResultsBarChart data={resultsMonthly} />
+                      <p className="mb-4 text-xs text-muted-foreground">Vitórias, empates e derrotas empilhados por mês</p>
+                      <StackedResultsBarChart data={resultsMonthly} />
                       <div className="mt-5 overflow-x-auto">
                         <table className="w-full min-w-[420px] text-sm">
                           <thead>
@@ -997,21 +1191,65 @@ function Index() {
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Histórico</h2>
-            {sorted.length > 0 && (
-              <button onClick={exportCsv}
-                className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
-                <Download className="h-3.5 w-3.5" /> Exportar CSV
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {yearSummary && (
+                <button onClick={() => setSummaryOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md border-2 border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/20">
+                  <Sparkles className="h-3.5 w-3.5" /> Resumo do ano
+                </button>
+              )}
+              {sorted.length > 0 && (
+                <button onClick={() => setCompactHistory((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  title={compactHistory ? "Modo detalhado" : "Modo compacto"}>
+                  <Rows3 className="h-3.5 w-3.5" /> {compactHistory ? "Detalhado" : "Compacto"}
+                </button>
+              )}
+              {sorted.length > 0 && (
+                <button onClick={exportCsv}
+                  className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+                  <Download className="h-3.5 w-3.5" /> Exportar CSV
+                </button>
+              )}
+            </div>
           </div>
+          {sorted.length > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={historyQuery}
+                  onChange={(e) => setHistoryQuery(e.target.value)}
+                  placeholder="Buscar por data ou local…"
+                  className="w-full rounded-lg border-2 border-border bg-input/40 py-1.5 pl-8 pr-3 text-sm text-foreground outline-none focus:border-primary"
+                />
+              </div>
+              <select
+                value={historyFilter}
+                onChange={(e) => setHistoryFilter(e.target.value as typeof historyFilter)}
+                className="rounded-lg border-2 border-border bg-input/40 px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+              >
+                <option value="all">Todos os tipos</option>
+                <option value="quinta">Futebol semanal</option>
+                <option value="pelada">Pelada</option>
+                <option value="W">Só vitórias</option>
+                <option value="D">Só empates</option>
+                <option value="L">Só derrotas</option>
+              </select>
+            </div>
+          )}
           {sorted.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {matches.length === 0 ? "Nenhum jogo registrado ainda." : "Nenhum jogo neste período."}
             </p>
+          ) : historySorted.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum jogo com esses filtros.</p>
           ) : (
             <ul className="space-y-2">
-              {sorted.map((m) => (
+              {historySorted.map((m) => (
                 <MatchRow key={m.id} match={m}
+                  compact={compactHistory}
                   onSave={saveMatchStats}
                   onRequestRemove={() => setConfirmDelete(m)} />
               ))}
@@ -1061,6 +1299,8 @@ function Index() {
         onAdd={(v, n) => samplesOpen && addSample(samplesOpen, v, n)}
         onRemove={removeSample}
       />
+
+      <YearSummaryDialog open={summaryOpen} onOpenChange={setSummaryOpen} summary={yearSummary} />
     </main>
   );
 }
@@ -1406,26 +1646,40 @@ function formatDate(iso: string) {
 }
 
 function BestMatchCard({
-  label, value, date, accent, highlight, record,
-}: { label: string; value: number; date: string; accent?: boolean; highlight?: boolean; record?: boolean }) {
+  label, value, date, accent, highlight, record, danger, score,
+}: {
+  label: string; value: number; date: string;
+  accent?: boolean; highlight?: boolean; record?: boolean; danger?: boolean; score?: string;
+}) {
   return (
-    <div className={`relative rounded-2xl border p-4 ${highlight ? "border-primary/40 bg-primary/10" : "border-border bg-card"}`}>
+    <div className={`relative rounded-2xl border p-4 ${
+      highlight ? "border-primary/40 bg-primary/10"
+      : danger ? "border-destructive/40 bg-destructive/10"
+      : "border-border bg-card"
+    }`}>
       {record && (
         <span className="absolute -top-2 -right-2 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground shadow">
           🏆 Recorde
         </span>
       )}
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-2xl font-bold ${accent || highlight ? "text-primary" : "text-foreground"}`}>{value}</p>
+      <p className={`mt-1 text-2xl font-bold ${
+        danger ? "text-destructive"
+        : (accent || highlight) ? "text-primary"
+        : "text-foreground"
+      }`}>
+        {danger ? "-" : ""}{value}
+        {score && <span className="ml-2 text-sm font-normal text-muted-foreground">({score})</span>}
+      </p>
       <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
-        <Calendar className="h-3.5 w-3.5 text-primary" /> {formatDate(date)}
+        <Calendar className={`h-3.5 w-3.5 ${danger ? "text-destructive" : "text-primary"}`} /> {formatDate(date)}
       </p>
     </div>
   );
 }
 
 function MatchRow({
-  match, onSave, onRequestRemove,
+  match, onSave, onRequestRemove, compact,
 }: {
   match: Match;
   onSave: (
@@ -1433,6 +1687,7 @@ function MatchRow({
     myScore: number | null, oppScore: number | null,
   ) => Promise<boolean>;
   onRequestRemove: () => void;
+  compact?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [goals, setGoals] = useState(match.goals);
@@ -1484,23 +1739,27 @@ function MatchRow({
     : null;
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border-2 border-border bg-card px-4 py-3 transition-all hover:border-primary/50 hover:bg-primary/[0.02]">
+    <li className={`flex items-center justify-between gap-3 rounded-xl border-2 border-border bg-card transition-all hover:border-primary/50 hover:bg-primary/[0.02] ${compact ? "px-3 py-1.5" : "px-4 py-3"}`}>
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+        {!compact && <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />}
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">
+          <p className={`truncate font-medium ${compact ? "text-xs" : "text-sm"}`}>
             {formatDate(match.date)}
-            <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
-              {match.type === "quinta" ? "Futebol semanal" : "Pelada"}
-            </span>
-            <span className="ml-1.5 text-xs text-muted-foreground">· {match.duration_minutes}min</span>
+            {!compact && (
+              <>
+                <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
+                  {match.type === "quinta" ? "Futebol semanal" : "Pelada"}
+                </span>
+                <span className="ml-1.5 text-xs text-muted-foreground">· {match.duration_minutes}min</span>
+              </>
+            )}
             {resultBadge && !editing && (
               <span className={`ml-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${resultBadge.cls}`}>
                 {resultBadge.label} {match.my_team_score}–{match.opponent_score}
               </span>
             )}
           </p>
-          {match.location && <p className="truncate text-xs text-muted-foreground">{match.location}</p>}
+          {match.location && !compact && <p className="truncate text-xs text-muted-foreground">{match.location}</p>}
           {editing && (
             <div className="mt-1.5 flex items-center gap-1.5 text-xs">
               <span className="text-primary">Meu time</span>
@@ -1630,13 +1889,13 @@ function shortDate(iso: string) {
   return `${d}/${m}`;
 }
 
-function LineChart({ data }: { data: { date: string; goals: number; assists: number }[] }) {
+function LineChart({ data }: { data: { date: string; goals: number; assists: number; rolling?: number }[] }) {
   const width = 600;
   const height = 240;
   const padding = { top: 16, right: 16, bottom: 28, left: 28 };
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
-  const maxY = Math.max(3, ...data.flatMap((d) => [d.goals, d.assists]));
+  const maxY = Math.max(3, ...data.flatMap((d) => [d.goals, d.assists, d.rolling ?? 0]));
   const stepX = data.length > 1 ? innerW / (data.length - 1) : 0;
   const pointsFor = (key: "goals" | "assists") =>
     data.map((d, i) => ({
@@ -1648,6 +1907,12 @@ function LineChart({ data }: { data: { date: string; goals: number; assists: num
   const OFFSET = 2.5;
   const goalsAdj = goalsPts.map((p, i) => ({ x: p.x, y: data[i].goals === data[i].assists ? p.y - OFFSET : p.y }));
   const assistsAdj = assistsPts.map((p, i) => ({ x: p.x, y: data[i].goals === data[i].assists ? p.y + OFFSET : p.y }));
+  const rollingPts = data.some((d) => typeof d.rolling === "number")
+    ? data.map((d, i) => ({
+        x: padding.left + i * stepX,
+        y: padding.top + innerH - ((d.rolling ?? 0) / maxY) * innerH,
+      }))
+    : null;
   const toPath = (pts: { x: number; y: number }[]) =>
     pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
   const yTicks = Array.from({ length: maxY + 1 }, (_, i) => i);
@@ -1660,6 +1925,12 @@ function LineChart({ data }: { data: { date: string; goals: number; assists: num
         <span className="inline-flex items-center gap-1.5 text-muted-foreground">
           <span className="h-2.5 w-2.5 rounded-full bg-accent" /> Assistências
         </span>
+        {rollingPts && (
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <span className="inline-block h-0 w-4 border-t-2 border-dashed border-foreground/70" />
+            Média móvel G+A (5 jogos)
+          </span>
+        )}
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Gráfico de gols e assistências por semana">
         {yTicks.map((t) => {
@@ -1677,6 +1948,11 @@ function LineChart({ data }: { data: { date: string; goals: number; assists: num
             <text x={padding.left} y={height - 8} className="fill-muted-foreground" style={{ fontSize: 10 }}>{shortDate(data[0].date)}</text>
             <text x={width - padding.right} y={height - 8} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{shortDate(data[data.length - 1].date)}</text>
           </>
+        )}
+        {rollingPts && (
+          <path d={toPath(rollingPts)} fill="none"
+            className="stroke-foreground/70" strokeWidth={1.8}
+            strokeDasharray="5 4" strokeLinejoin="round" strokeLinecap="round" />
         )}
         <path d={toPath(assistsAdj)} fill="none" className="stroke-accent" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
         <path d={toPath(goalsAdj)} fill="none" className="stroke-primary" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
@@ -1738,6 +2014,110 @@ function MonthlyBarChart({
         })}
       </svg>
     </div>
+  );
+}
+
+function YearSummaryDialog({
+  open, onOpenChange, summary,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  summary: {
+    year: number; games: number; goals: number; assists: number; ga: number;
+    minutes: number; gPerGame: number; aPerGame: number;
+    best: Match; bestMonthLabel: string;
+    resultsTotal: number; w: number; d: number; l: number;
+  } | null;
+}) {
+  async function shareSummary() {
+    if (!summary) return;
+    const text =
+      `⚽ Meu Placar — Temporada ${summary.year}\n` +
+      `${summary.games} jogos · ${summary.goals} gols · ${summary.assists} assistências (${summary.ga} participações)\n` +
+      `Melhor mês: ${summary.bestMonthLabel}\n` +
+      (summary.resultsTotal ? `Resultados: ${summary.w}V ${summary.d}E ${summary.l}D\n` : "") +
+      `Melhor partida: ${summary.best.goals}G + ${summary.best.assists}A em ${formatDate(summary.best.date)}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "Meu Placar", text }); } catch { /* ignored */ }
+    } else if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      toast.success("Resumo copiado!");
+    }
+  }
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            <span className="inline-flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" /> Resumo de {summary?.year ?? ""}
+            </span>
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Sua temporada em números — pronto para imprimir ou compartilhar.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {summary && (
+          <div className="my-2 space-y-4 rounded-xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 to-transparent p-5">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-3xl font-bold text-primary">{summary.goals}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">gols</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-accent">{summary.assists}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">assistências</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-foreground">{summary.games}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">jogos</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">G+A por jogo</p>
+                <p className="mt-0.5 text-lg font-semibold tabular-nums">
+                  {(summary.gPerGame + summary.aPerGame).toFixed(2)}
+                </p>
+              </div>
+              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Melhor mês</p>
+                <p className="mt-0.5 text-lg font-semibold">{summary.bestMonthLabel}</p>
+              </div>
+              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Minutos jogados</p>
+                <p className="mt-0.5 text-lg font-semibold tabular-nums">
+                  {summary.minutes.toLocaleString("pt-BR")}
+                </p>
+              </div>
+              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Melhor partida</p>
+                <p className="mt-0.5 text-lg font-semibold tabular-nums">
+                  {summary.best.goals}G + {summary.best.assists}A
+                </p>
+                <p className="text-[10px] text-muted-foreground">{formatDate(summary.best.date)}</p>
+              </div>
+            </div>
+            {summary.resultsTotal > 0 && (
+              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Resultados</p>
+                <div className="flex items-center gap-3 text-sm font-semibold tabular-nums">
+                  <span className="text-primary">{summary.w} V</span>
+                  <span className="text-muted-foreground">{summary.d} E</span>
+                  <span className="text-destructive">{summary.l} D</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Fechar</AlertDialogCancel>
+          <AlertDialogAction onClick={(e) => { e.preventDefault(); shareSummary(); }}>
+            <Share2 className="mr-1.5 h-3.5 w-3.5" /> Compartilhar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -1837,6 +2217,136 @@ function ResultsBarChart({
               <rect x={lx} y={padding.top + innerH - lH} width={barW} height={lH} rx={2} className="fill-destructive" />
               <text x={cx} y={height - 14} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>{d.label}</text>
             </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function StackedResultsBarChart({
+  data,
+}: {
+  data: { key: string; label: string; w: number; d: number; l: number; games: number }[];
+}) {
+  const width = 600;
+  const height = 220;
+  const padding = { top: 16, right: 12, bottom: 32, left: 28 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+  const maxY = Math.max(3, ...data.map((d) => d.games));
+  const groupW = data.length ? innerW / data.length : 0;
+  const barW = Math.min(30, groupW - 8);
+  const yTicks = Array.from({ length: maxY + 1 }, (_, i) => i);
+  return (
+    <div className="w-full">
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs">
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Vitórias
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-sm bg-muted-foreground" /> Empates
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <span className="h-2.5 w-2.5 rounded-sm bg-destructive" /> Derrotas
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="V-E-D empilhado por mês">
+        {yTicks.map((t) => {
+          const y = padding.top + innerH - (t / maxY) * innerH;
+          return (
+            <g key={t}>
+              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y}
+                className="stroke-border" strokeDasharray="3 4" strokeWidth={1} />
+              <text x={padding.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+            </g>
+          );
+        })}
+        {data.map((d, i) => {
+          const cx = padding.left + i * groupW + groupW / 2;
+          const x = cx - barW / 2;
+          const wH = (d.w / maxY) * innerH;
+          const dH = (d.d / maxY) * innerH;
+          const lH = (d.l / maxY) * innerH;
+          const baseY = padding.top + innerH;
+          return (
+            <g key={d.key}>
+              <rect x={x} y={baseY - wH} width={barW} height={wH} className="fill-primary" />
+              <rect x={x} y={baseY - wH - dH} width={barW} height={dH} className="fill-muted-foreground" />
+              <rect x={x} y={baseY - wH - dH - lH} width={barW} height={lH} className="fill-destructive" />
+              <text x={cx} y={height - 14} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>{d.label}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function ScatterChart({
+  data,
+}: {
+  data: { x: number; y: number; date: string; result: MatchResult | null }[];
+}) {
+  const width = 500;
+  const height = 260;
+  const padding = { top: 16, right: 16, bottom: 32, left: 30 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+  const maxX = Math.max(3, ...data.map((d) => d.x));
+  const maxY = Math.max(3, ...data.map((d) => d.y));
+  const xTicks = Array.from({ length: maxX + 1 }, (_, i) => i);
+  const yTicks = Array.from({ length: maxY + 1 }, (_, i) => i);
+  // Cluster points at the same (x,y) so overlaps are visible
+  const counts = new Map<string, number>();
+  const points = data.map((d) => {
+    const k = `${d.x}-${d.y}`;
+    const idx = counts.get(k) ?? 0;
+    counts.set(k, idx + 1);
+    return { ...d, idx };
+  });
+  const colorFor = (r: MatchResult | null) =>
+    r === "W" ? "var(--primary)" : r === "L" ? "var(--destructive)" : "var(--muted-foreground)";
+  return (
+    <div className="w-full">
+      <div className="mb-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" />V</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground" />E</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-destructive" />D</span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="Dispersão gols do time × meus gols">
+        {yTicks.map((t) => {
+          const y = padding.top + innerH - (t / maxY) * innerH;
+          return (
+            <g key={`y${t}`}>
+              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y}
+                className="stroke-border" strokeDasharray="3 4" strokeWidth={1} />
+              <text x={padding.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+            </g>
+          );
+        })}
+        {xTicks.map((t) => {
+          const x = padding.left + (t / maxX) * innerW;
+          return (
+            <text key={`x${t}`} x={x} y={height - 14} textAnchor="middle"
+              className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+          );
+        })}
+        <text x={width / 2} y={height - 2} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>
+          gols do time
+        </text>
+        <text x={10} y={padding.top + innerH / 2} textAnchor="middle"
+          transform={`rotate(-90 10 ${padding.top + innerH / 2})`}
+          className="fill-muted-foreground" style={{ fontSize: 10 }}>meus gols</text>
+        {points.map((p, i) => {
+          const cx = padding.left + (p.x / maxX) * innerW + (p.idx % 3 - 1) * 3;
+          const cy = padding.top + innerH - (p.y / maxY) * innerH + Math.floor(p.idx / 3) * 3;
+          return (
+            <circle key={i} cx={cx} cy={cy} r={4.5}
+              fill={colorFor(p.result)} fillOpacity={0.75}
+              stroke="var(--background)" strokeWidth={1}>
+              <title>{formatDate(p.date)} — time {p.x}, você {p.y}</title>
+            </circle>
           );
         })}
       </svg>
