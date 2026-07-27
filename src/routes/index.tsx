@@ -583,14 +583,14 @@ function Index() {
             <button
               onClick={() => setProfileOpen(true)}
               aria-label="Perfil"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+              className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
               <User className="h-3.5 w-3.5" /> Perfil
             </button>
             {userEmail && (
               <button
                 onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/login" }); }}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
                 title={userEmail}
               >
                 <LogOut className="h-3.5 w-3.5" /> Sair
@@ -669,7 +669,7 @@ function Index() {
             )}
 
             {/* Sequences */}
-            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+            <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
               <h2 className="text-lg font-semibold">Sequências</h2>
               <p className="mb-4 text-xs text-muted-foreground">
                 Jogos consecutivos com gol, assistência ou participação (gol + assistência). Mostra a sequência atual e o recorde histórico.
@@ -687,7 +687,7 @@ function Index() {
                   <h2 className="text-lg font-semibold">Recordes pessoais</h2>
                   <button
                     onClick={shareBest}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                    className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
                   >
                     <Share2 className="h-3.5 w-3.5" /> Compartilhar
                   </button>
@@ -702,7 +702,7 @@ function Index() {
 
             {/* Distribution donut */}
             {distribution && (
-              <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+              <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
                 <h2 className="mb-4 text-lg font-semibold">Distribuição dos jogos</h2>
                 <DistributionDonut d={distribution} />
               </section>
@@ -718,7 +718,7 @@ function Index() {
             </section>
 
             {chartData.length > 1 && (
-              <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+              <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
                 <h2 className="mb-1 text-lg font-semibold">Evolução no Futebol</h2>
                 <p className="mb-4 text-xs text-muted-foreground">
                   Gols e assistências por jogo (futebol semanal e peladas). Quando os valores coincidem, as linhas ficam lado a lado.
@@ -728,7 +728,7 @@ function Index() {
             )}
 
             {monthly.length > 0 && (
-              <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+              <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
                 <h2 className="mb-1 text-lg font-semibold">Desempenho por mês</h2>
                 <p className="mb-4 text-xs text-muted-foreground">Participações em gols ao longo do ano</p>
                 <MonthlyBarChart data={monthly} />
@@ -768,7 +768,7 @@ function Index() {
             )}
 
             {/* Month compare (after monthly chart so all month-related metrics are together) */}
-            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+            <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
               <h2 className="mb-4 text-lg font-semibold">Mês atual vs anterior</h2>
               <div className="grid grid-cols-3 gap-3">
                 <CompareCell label="Gols" cur={monthCompare.current.goals} prev={monthCompare.previous.goals} />
@@ -781,12 +781,12 @@ function Index() {
             <section className="mb-8">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold">Vitórias & derrotas</h2>
-                <span className="rounded-full border border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span className="rounded-full border-2 border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                   desde jun/2026
                 </span>
               </div>
               {resultsMatches.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border bg-card p-5 text-sm text-muted-foreground">
+                <div className="rounded-2xl border-2 border-dashed border-border bg-card p-5 text-sm text-muted-foreground">
                   Registre o placar do seu time e do adversário em uma partida a partir de jun/2026 para começar a ver as métricas aqui.
                 </div>
               ) : (
@@ -797,13 +797,12 @@ function Index() {
                     <StatCard label="Derrotas" value={resultsStats.l} />
                     <StatCard label="Aproveitamento" value={`${resultsStats.efficiency}%`} highlight />
                   </div>
-                  <div className="mb-6 grid grid-cols-3 gap-3">
+                  <div className="mb-6 grid grid-cols-2 gap-3">
                     <StatCard label="Jogos com placar" value={resultsStats.total} small />
-                    <StatCard label="Taxa de vitória" value={`${resultsStats.winRate}%`} small />
-                    <StatCard label="Pontos (3-1-0)" value={resultsStats.points} small />
+                    <StatCard label="Pontos (3-1-0)" value={`${resultsStats.points}/${resultsStats.total * 3}`} small />
                   </div>
 
-                  <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                  <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
                     <h3 className="text-base font-semibold">Sequências</h3>
                     <p className="mb-4 text-xs text-muted-foreground">
                       Jogos consecutivos vencidos, sem perder ou perdidos. Mostra a sequência atual e o recorde histórico.
@@ -816,7 +815,7 @@ function Index() {
                   </div>
 
                   {resultsDistribution && (
-                    <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                    <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
                       <h3 className="mb-4 text-base font-semibold">Distribuição dos jogos</h3>
                       <ResultsDonut d={resultsDistribution} />
                     </div>
@@ -824,7 +823,7 @@ function Index() {
 
 
                   {resultsMonthly.length > 0 && (
-                    <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+                    <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
                       <h3 className="mb-1 text-base font-semibold">Desempenho por mês</h3>
                       <p className="mb-4 text-xs text-muted-foreground">Vitórias e derrotas ao longo dos meses</p>
                       <ResultsBarChart data={resultsMonthly} />
@@ -865,7 +864,7 @@ function Index() {
                     </div>
                   )}
 
-                  <div className="rounded-2xl border border-border bg-card p-5">
+                  <div className="rounded-2xl border-2 border-border bg-card p-5">
                     <h3 className="mb-4 text-base font-semibold">Mês atual vs anterior</h3>
                     <div className="grid grid-cols-3 gap-3">
                       <CompareCell label="Vitórias" cur={resultsMonthCompare.current.w} prev={resultsMonthCompare.previous.w} />
@@ -878,7 +877,7 @@ function Index() {
             </section>
 
             {/* Physical performance (last metric section, above historical records) */}
-            <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+            <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
               <div className="mb-1 flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Performance física</h2>
                 <button
@@ -922,14 +921,14 @@ function Index() {
           </>
         )}
 
-        <section className="mb-8 rounded-2xl border border-border bg-card p-5">
+        <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
           <h2 className="mb-4 text-lg font-semibold">Registrar jogo</h2>
           <form onSubmit={addMatch} className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="text-muted-foreground">Data</span>
               <input type="date" required value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+                className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="text-muted-foreground">Tipo</span>
@@ -938,7 +937,7 @@ function Index() {
                   const type = e.target.value as MatchType;
                   setForm({ ...form, type, location: type === "quinta" ? QUINTA_LOCATION : "" });
                 }}
-                className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary">
+                className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary">
                 <option value="quinta">Futebol semanal</option>
                 <option value="pelada">Pelada eventual</option>
               </select>
@@ -947,27 +946,27 @@ function Index() {
               <span className="text-muted-foreground">Local (opcional)</span>
               <input type="text" placeholder="Ex: Quadra do bairro" value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
-                className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+                className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="text-muted-foreground">Gols</span>
               <input type="number" min={0} value={form.goals}
                 onChange={(e) => setForm({ ...form, goals: Number(e.target.value) })}
-                className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+                className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="text-muted-foreground">Assistências</span>
               <input type="number" min={0} value={form.assists}
                 onChange={(e) => setForm({ ...form, assists: Number(e.target.value) })}
-                className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+                className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
             <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
               <span className="text-muted-foreground">Duração (minutos)</span>
               <input type="number" min={1} value={form.duration_minutes}
                 onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })}
-                className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+                className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
-            <div className="sm:col-span-2 rounded-lg border border-dashed border-border bg-background/30 p-3">
+            <div className="sm:col-span-2 rounded-lg border-2 border-dashed border-border bg-background/30 p-3">
               <p className="mb-2 text-xs text-muted-foreground">
                 Placar do jogo (opcional, a partir de jun/2026)
               </p>
@@ -978,13 +977,13 @@ function Index() {
                   </span>
                   <input type="number" min={0} placeholder="Ex: 4" value={form.my_team_score}
                     onChange={(e) => setForm({ ...form, my_team_score: e.target.value })}
-                    className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+                    className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
                 </label>
                 <label className="flex flex-col gap-1.5 text-sm">
                   <span className="text-muted-foreground">Adversário</span>
                   <input type="number" min={0} placeholder="Ex: 2" value={form.opponent_score}
                     onChange={(e) => setForm({ ...form, opponent_score: e.target.value })}
-                    className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+                    className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
                 </label>
               </div>
             </div>
@@ -1000,7 +999,7 @@ function Index() {
             <h2 className="text-lg font-semibold">Histórico</h2>
             {sorted.length > 0 && (
               <button onClick={exportCsv}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+                className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
                 <Download className="h-3.5 w-3.5" /> Exportar CSV
               </button>
             )}
@@ -1146,7 +1145,7 @@ function PhysicalStatCard({
 function BMICard({ bmi, onEdit }: { bmi: { value: number; label: string; tone: "ok" | "warn" | "bad" } | null; onEdit: () => void }) {
   if (!bmi) {
     return (
-      <button onClick={onEdit} className="rounded-xl border border-dashed border-border bg-background/40 p-4 text-left transition-colors hover:border-primary/60">
+      <button onClick={onEdit} className="rounded-xl border-2 border-dashed border-border bg-background/40 p-4 text-left transition-colors hover:border-primary/60">
         <p className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
           <Activity className="h-4 w-4" /> IMC
         </p>
@@ -1157,7 +1156,7 @@ function BMICard({ bmi, onEdit }: { bmi: { value: number; label: string; tone: "
   const toneClass =
     bmi.tone === "ok" ? "text-primary" : bmi.tone === "warn" ? "text-foreground" : "text-destructive";
   return (
-    <div className="rounded-xl border border-border bg-background/40 p-4">
+    <div className="rounded-xl border-2 border-border bg-background/40 p-4">
       <p className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
         <Activity className="h-4 w-4" /> IMC
       </p>
@@ -1184,7 +1183,7 @@ function TrendCard({ label, recent, all }: { label: string; recent: number; all:
   const up = diff > 0.01;
   const down = diff < -0.01;
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div className="rounded-2xl border-2 border-border bg-card p-4">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <div className="mt-1 flex items-baseline gap-2">
         <p className="text-2xl font-bold tabular-nums text-foreground">{recent.toFixed(2)}</p>
@@ -1204,7 +1203,7 @@ function CompareCell({ label, cur, prev }: { label: string; cur: number; prev: n
   const up = diff > 0;
   const down = diff < 0;
   return (
-    <div className="rounded-xl border border-border bg-background/40 p-4 text-center">
+    <div className="rounded-xl border-2 border-border bg-background/40 p-4 text-center">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{cur}</p>
       <p className={`mt-1 inline-flex items-center gap-0.5 text-xs ${up ? "text-primary" : down ? "text-destructive" : "text-muted-foreground"}`}>
@@ -1298,7 +1297,7 @@ function SamplesDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <div className="rounded-xl border border-border bg-background/40 p-3 text-sm">
+        <div className="rounded-xl border-2 border-border bg-background/40 p-3 text-sm">
           {values.length === 0 ? (
             <p className="text-muted-foreground">
               Sem medições ainda. Usando valor padrão de <strong className="text-foreground">{defaultValue.toString().replace(".", ",")} {unit}</strong> por partida.
@@ -1330,12 +1329,12 @@ function SamplesDialog({
               type="number" step={isCal ? "1" : "0.01"} min={0}
               value={value} onChange={(e) => setValue(e.target.value)}
               placeholder={placeholder}
-              className="w-28 rounded-lg border border-border bg-input/40 px-3 py-2 text-sm outline-none focus:border-primary"
+              className="w-28 rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-sm outline-none focus:border-primary"
             />
             <input
               type="text" value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Nota (opcional)"
-              className="min-w-0 flex-1 rounded-lg border border-border bg-input/40 px-3 py-2 text-sm outline-none focus:border-primary"
+              className="min-w-0 flex-1 rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-sm outline-none focus:border-primary"
             />
             <button
               onClick={() => {
@@ -1354,7 +1353,7 @@ function SamplesDialog({
         {samples.length > 0 && (
           <div className="max-h-56 space-y-1.5 overflow-y-auto">
             {samples.map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background/40 px-3 py-2 text-sm">
+              <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg border-2 border-border bg-background/40 px-3 py-2 text-sm">
                 <div className="min-w-0">
                   <span className="font-medium tabular-nums">
                     {isCal ? s.value.toFixed(0) : s.value.toFixed(2).replace(".", ",")} {unit}
@@ -1382,7 +1381,7 @@ function SamplesDialog({
 
 function EmptyState() {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+    <div className="rounded-2xl border-2 border-dashed border-border bg-card p-8 text-center">
       <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
         <Trophy className="h-7 w-7" />
       </div>
@@ -1485,7 +1484,7 @@ function MatchRow({
     : null;
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-all hover:border-primary/50 hover:bg-primary/[0.02]">
+    <li className="flex items-center justify-between gap-3 rounded-xl border-2 border-border bg-card px-4 py-3 transition-all hover:border-primary/50 hover:bg-primary/[0.02]">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0">
@@ -1508,12 +1507,12 @@ function MatchRow({
               <input type="number" min={0} value={myScore}
                 onChange={(e) => setMyScore(e.target.value)}
                 placeholder="—"
-                className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+                className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
               <span className="text-muted-foreground">x</span>
               <input type="number" min={0} value={oppScore}
                 onChange={(e) => setOppScore(e.target.value)}
                 placeholder="—"
-                className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+                className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
               <span className="text-muted-foreground">Adversário</span>
             </div>
           )}
@@ -1524,7 +1523,7 @@ function MatchRow({
           <Target className="h-4 w-4" aria-label="Gols" />
           {editing ? (
             <input type="number" min={0} value={goals} onChange={(e) => setGoals(Number(e.target.value))}
-              className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+              className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
           ) : (
             <span className="w-6 text-center font-medium tabular-nums">{match.goals}</span>
           )}
@@ -1533,7 +1532,7 @@ function MatchRow({
           <Handshake className="h-4 w-4" aria-label="Assistências" />
           {editing ? (
             <input type="number" min={0} value={assists} onChange={(e) => setAssists(Number(e.target.value))}
-              className="w-12 rounded-md border border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+              className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
           ) : (
             <span className="w-6 text-center font-medium tabular-nums">{match.assists}</span>
           )}
@@ -1595,14 +1594,14 @@ function ProfileDialog({
             <input type="number" min={50} max={250} value={height}
               onChange={(e) => setHeight(e.target.value)}
               placeholder="175"
-              className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+              className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="text-muted-foreground">Peso (kg)</span>
             <input type="number" min={20} max={300} step="0.1" value={weight}
               onChange={(e) => setWeight(e.target.value)}
               placeholder="78.5"
-              className="rounded-lg border border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+              className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
           </label>
         </div>
         <AlertDialogFooter>
