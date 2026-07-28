@@ -486,6 +486,11 @@ function Index() {
     const biggestLossItem = withDiff.reduce((b, c) => (c.diff < b.diff ? c : b));
     const iScored = withScore.filter((m) => m.goals > 0);
     const winsWhenIScored = iScored.filter((m) => matchResult(m) === "W").length;
+    const totalWins = withScore.filter((m) => matchResult(m) === "W").length;
+    // Participação nos últimos 5 jogos com placar
+    const last5 = withScore.slice(-5);
+    const last5TeamGoals = last5.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
+    const last5MyGoals = last5.reduce((s, m) => s + m.goals, 0);
     return {
       games,
       teamGoals,
@@ -500,6 +505,13 @@ function Index() {
       iScoredGames: iScored.length,
       winsWhenIScored,
       winRateWhenIScored: iScored.length ? (winsWhenIScored / iScored.length) * 100 : 0,
+      totalWins,
+      recent: {
+        games: last5.length,
+        myGoals: last5MyGoals,
+        teamGoals: last5TeamGoals,
+        pct: last5TeamGoals > 0 ? (last5MyGoals / last5TeamGoals) * 100 : 0,
+      },
     };
   }, [matches]);
 
