@@ -2328,9 +2328,9 @@ function ScatterChart({
 }: {
   data: { x: number; y: number; date: string; result: MatchResult | null }[];
 }) {
-  const width = 500;
-  const height = 260;
-  const padding = { top: 16, right: 16, bottom: 32, left: 30 };
+  const width = 520;
+  const height = 320;
+  const padding = { top: 20, right: 20, bottom: 48, left: 46 };
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
   const maxX = Math.max(3, ...data.map((d) => d.x));
@@ -2349,7 +2349,7 @@ function ScatterChart({
     r === "W" ? "var(--primary)" : r === "L" ? "var(--destructive)" : "var(--muted-foreground)";
   return (
     <div className="w-full">
-      <div className="mb-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+      <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" />V</span>
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground" />E</span>
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-destructive" />D</span>
@@ -2361,31 +2361,35 @@ function ScatterChart({
             <g key={`y${t}`}>
               <line x1={padding.left} x2={width - padding.right} y1={y} y2={y}
                 className="stroke-border" strokeDasharray="3 4" strokeWidth={1} />
-              <text x={padding.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+              <text x={padding.left - 8} y={y + 4} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 13 }}>{t}</text>
             </g>
           );
         })}
         {xTicks.map((t) => {
           const x = padding.left + (t / maxX) * innerW;
           return (
-            <text key={`x${t}`} x={x} y={height - 14} textAnchor="middle"
-              className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+            <text key={`x${t}`} x={x} y={height - 24} textAnchor="middle"
+              className="fill-muted-foreground" style={{ fontSize: 13 }}>{t}</text>
           );
         })}
-        <text x={width / 2} y={height - 2} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>
-          gols do time
+        <text x={width / 2} y={height - 6} textAnchor="middle" className="fill-foreground" style={{ fontSize: 13, fontWeight: 600 }}>
+          Gols do time
         </text>
-        <text x={10} y={padding.top + innerH / 2} textAnchor="middle"
-          transform={`rotate(-90 10 ${padding.top + innerH / 2})`}
-          className="fill-muted-foreground" style={{ fontSize: 10 }}>meus gols</text>
+        <text x={14} y={padding.top + innerH / 2} textAnchor="middle"
+          transform={`rotate(-90 14 ${padding.top + innerH / 2})`}
+          className="fill-foreground" style={{ fontSize: 13, fontWeight: 600 }}>Meus gols</text>
         {points.map((p, i) => {
-          const cx = padding.left + (p.x / maxX) * innerW + (p.idx % 3 - 1) * 3;
-          const cy = padding.top + innerH - (p.y / maxY) * innerH + Math.floor(p.idx / 3) * 3;
+          const cx = padding.left + (p.x / maxX) * innerW + (p.idx % 3 - 1) * 4;
+          const cy = padding.top + innerH - (p.y / maxY) * innerH + Math.floor(p.idx / 3) * 4;
+          const pct = p.x > 0 ? Math.round((p.y / p.x) * 100) : null;
           return (
-            <circle key={i} cx={cx} cy={cy} r={4.5}
-              fill={colorFor(p.result)} fillOpacity={0.75}
-              stroke="var(--background)" strokeWidth={1}>
-              <title>{formatDate(p.date)} — time {p.x}, você {p.y}</title>
+            <circle key={i} cx={cx} cy={cy} r={7}
+              fill={colorFor(p.result)} fillOpacity={0.8}
+              stroke="var(--background)" strokeWidth={1.5}>
+              <title>
+                {formatDate(p.date)} — time {p.x}, você {p.y}
+                {pct != null ? ` (${pct}%)` : ""}
+              </title>
             </circle>
           );
         })}
