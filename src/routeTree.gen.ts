@@ -9,13 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as MelhoresLancesRouteImport } from './routes/melhores-lances'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MelhoresLancesRouteImport } from './routes/melhores-lances'
 
-const MelhoresLancesRoute = MelhoresLancesRouteImport.update({
-  id: '/melhores-lances',
-  path: '/melhores-lances',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -23,9 +23,9 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const MelhoresLancesRoute = MelhoresLancesRouteImport.update({
+  id: '/melhores-lances',
+  path: '/melhores-lances',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -61,11 +61,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/melhores-lances': {
-      id: '/melhores-lances'
-      path: '/melhores-lances'
-      fullPath: '/melhores-lances'
-      preLoaderRoute: typeof MelhoresLancesRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -75,11 +75,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/melhores-lances': {
+      id: '/melhores-lances'
+      path: '/melhores-lances'
+      fullPath: '/melhores-lances'
+      preLoaderRoute: typeof MelhoresLancesRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
