@@ -1342,9 +1342,9 @@ function useCountUp(value: number, duration = 700) {
 }
 
 function StatCard({
-  label, value, accent, highlight, small,
+  label, value, accent, highlight, small, sub,
 }: {
-  label: string; value: number | string; accent?: boolean; highlight?: boolean; small?: boolean;
+  label: string; value: number | string; accent?: boolean; highlight?: boolean; small?: boolean; sub?: string;
 }) {
   const numeric = typeof value === "number" ? value : Number(value);
   const animate = !Number.isNaN(numeric) && typeof value !== "string";
@@ -1355,6 +1355,7 @@ function StatCard({
       <p className={`mt-1 font-bold tabular-nums ${small ? "text-2xl" : "text-3xl"} ${accent || highlight ? "text-primary" : "text-foreground"}`}>
         {animate ? Math.round(displayed).toLocaleString("pt-BR") : value}
       </p>
+      {sub && <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">{sub}</p>}
     </div>
   );
 }
