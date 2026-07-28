@@ -960,11 +960,17 @@ function Index() {
 
                   {teamStats && (
                     <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
-                      <h3 className="mb-1 text-base font-semibold">Gols do time</h3>
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <h3 className="text-base font-semibold">Gols do time</h3>
+                        <span className="rounded-full border-2 border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                          desde jun/2026
+                        </span>
+                      </div>
                       <p className="mb-4 text-xs text-muted-foreground">
                         Estatísticas de placar considerando jogos com o placar registrado.
                       </p>
                       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <StatCard label="Jogos com placar" value={teamStats.games} />
                         <StatCard label="Gols pró" value={teamStats.teamGoals} accent />
                         <StatCard label="Gols contra" value={teamStats.oppGoals} />
                         <StatCard
@@ -972,10 +978,27 @@ function Index() {
                           value={`${teamStats.diff > 0 ? "+" : ""}${teamStats.diff}`}
                           highlight
                         />
+                      </div>
+                      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-2">
                         <StatCard
                           label="Sua participação"
                           value={`${teamStats.participation.toFixed(0)}%`}
-                          small
+                          accent
+                          sub={`${teamStats.myGoalsInThose} de ${teamStats.teamGoals} gols do time`}
+                        />
+                        <StatCard
+                          label="Participação recente"
+                          value={
+                            teamStats.recent.games > 0
+                              ? `${teamStats.recent.pct.toFixed(0)}%`
+                              : "—"
+                          }
+                          highlight
+                          sub={
+                            teamStats.recent.games > 0
+                              ? `${teamStats.recent.myGoals} de ${teamStats.recent.teamGoals} nos últimos ${teamStats.recent.games} jogos`
+                              : "Sem jogos recentes"
+                          }
                         />
                       </div>
                       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -990,8 +1013,12 @@ function Index() {
                           small
                         />
                         <StatCard
-                          label="Vitórias c/ você marcando"
-                          value={`${teamStats.winRateWhenIScored.toFixed(0)}%`}
+                          label="Marcou em vitórias"
+                          value={
+                            teamStats.totalWins > 0
+                              ? `${teamStats.winsWhenIScored}/${teamStats.totalWins}`
+                              : "—"
+                          }
                           small
                           accent
                         />
