@@ -486,6 +486,11 @@ function Index() {
     const biggestLossItem = withDiff.reduce((b, c) => (c.diff < b.diff ? c : b));
     const iScored = withScore.filter((m) => m.goals > 0);
     const winsWhenIScored = iScored.filter((m) => matchResult(m) === "W").length;
+    const totalWins = withScore.filter((m) => matchResult(m) === "W").length;
+    // Participação nos últimos 5 jogos com placar
+    const last5 = withScore.slice(-5);
+    const last5TeamGoals = last5.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
+    const last5MyGoals = last5.reduce((s, m) => s + m.goals, 0);
     return {
       games,
       teamGoals,
@@ -500,6 +505,13 @@ function Index() {
       iScoredGames: iScored.length,
       winsWhenIScored,
       winRateWhenIScored: iScored.length ? (winsWhenIScored / iScored.length) * 100 : 0,
+      totalWins,
+      recent: {
+        games: last5.length,
+        myGoals: last5MyGoals,
+        teamGoals: last5TeamGoals,
+        pct: last5TeamGoals > 0 ? (last5MyGoals / last5TeamGoals) * 100 : 0,
+      },
     };
   }, [matches]);
 
@@ -948,11 +960,17 @@ function Index() {
 
                   {teamStats && (
                     <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
-                      <h3 className="mb-1 text-base font-semibold">Gols do time</h3>
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <h3 className="text-base font-semibold">Gols do time</h3>
+                        <span className="rounded-full border-2 border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                          desde jun/2026
+                        </span>
+                      </div>
                       <p className="mb-4 text-xs text-muted-foreground">
                         Estatísticas de placar considerando jogos com o placar registrado.
                       </p>
                       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <StatCard label="Jogos com placar" value={teamStats.games} />
                         <StatCard label="Gols pró" value={teamStats.teamGoals} accent />
                         <StatCard label="Gols contra" value={teamStats.oppGoals} />
                         <StatCard
@@ -960,10 +978,27 @@ function Index() {
                           value={`${teamStats.diff > 0 ? "+" : ""}${teamStats.diff}`}
                           highlight
                         />
+                      </div>
+                      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-2">
                         <StatCard
                           label="Sua participação"
                           value={`${teamStats.participation.toFixed(0)}%`}
-                          small
+                          accent
+                          sub={`${teamStats.myGoalsInThose} de ${teamStats.teamGoals} gols do time`}
+                        />
+                        <StatCard
+                          label="Participação recente"
+                          value={
+                            teamStats.recent.games > 0
+                              ? `${teamStats.recent.pct.toFixed(0)}%`
+                              : "—"
+                          }
+                          highlight
+                          sub={
+                            teamStats.recent.games > 0
+                              ? `${teamStats.recent.myGoals} de ${teamStats.recent.teamGoals} nos últimos ${teamStats.recent.games} jogos`
+                              : "Sem jogos recentes"
+                          }
                         />
                       </div>
                       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -978,8 +1013,12 @@ function Index() {
                           small
                         />
                         <StatCard
-                          label="Vitórias c/ você marcando"
-                          value={`${teamStats.winRateWhenIScored.toFixed(0)}%`}
+                          label="Marcou em vitórias"
+                          value={
+                            teamStats.totalWins > 0
+                              ? `${teamStats.winsWhenIScored}/${teamStats.totalWins}`
+                              : "—"
+                          }
                           small
                           accent
                         />
@@ -1330,9 +1369,9 @@ function useCountUp(value: number, duration = 700) {
 }
 
 function StatCard({
-  label, value, accent, highlight, small,
+  label, value, accent, highlight, small, sub,
 }: {
-  label: string; value: number | string; accent?: boolean; highlight?: boolean; small?: boolean;
+  label: string; value: number | string; accent?: boolean; highlight?: boolean; small?: boolean; sub?: string;
 }) {
   const numeric = typeof value === "number" ? value : Number(value);
   const animate = !Number.isNaN(numeric) && typeof value !== "string";
@@ -1343,6 +1382,7 @@ function StatCard({
       <p className={`mt-1 font-bold tabular-nums ${small ? "text-2xl" : "text-3xl"} ${accent || highlight ? "text-primary" : "text-foreground"}`}>
         {animate ? Math.round(displayed).toLocaleString("pt-BR") : value}
       </p>
+      {sub && <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">{sub}</p>}
     </div>
   );
 }
@@ -2288,9 +2328,9 @@ function ScatterChart({
 }: {
   data: { x: number; y: number; date: string; result: MatchResult | null }[];
 }) {
-  const width = 500;
-  const height = 260;
-  const padding = { top: 16, right: 16, bottom: 32, left: 30 };
+  const width = 520;
+  const height = 320;
+  const padding = { top: 20, right: 20, bottom: 48, left: 46 };
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
   const maxX = Math.max(3, ...data.map((d) => d.x));
@@ -2309,7 +2349,7 @@ function ScatterChart({
     r === "W" ? "var(--primary)" : r === "L" ? "var(--destructive)" : "var(--muted-foreground)";
   return (
     <div className="w-full">
-      <div className="mb-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+      <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" />V</span>
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground" />E</span>
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-destructive" />D</span>
@@ -2321,31 +2361,35 @@ function ScatterChart({
             <g key={`y${t}`}>
               <line x1={padding.left} x2={width - padding.right} y1={y} y2={y}
                 className="stroke-border" strokeDasharray="3 4" strokeWidth={1} />
-              <text x={padding.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+              <text x={padding.left - 8} y={y + 4} textAnchor="end" className="fill-muted-foreground" style={{ fontSize: 13 }}>{t}</text>
             </g>
           );
         })}
         {xTicks.map((t) => {
           const x = padding.left + (t / maxX) * innerW;
           return (
-            <text key={`x${t}`} x={x} y={height - 14} textAnchor="middle"
-              className="fill-muted-foreground" style={{ fontSize: 10 }}>{t}</text>
+            <text key={`x${t}`} x={x} y={height - 24} textAnchor="middle"
+              className="fill-muted-foreground" style={{ fontSize: 13 }}>{t}</text>
           );
         })}
-        <text x={width / 2} y={height - 2} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>
-          gols do time
+        <text x={width / 2} y={height - 6} textAnchor="middle" className="fill-foreground" style={{ fontSize: 13, fontWeight: 600 }}>
+          Gols do time
         </text>
-        <text x={10} y={padding.top + innerH / 2} textAnchor="middle"
-          transform={`rotate(-90 10 ${padding.top + innerH / 2})`}
-          className="fill-muted-foreground" style={{ fontSize: 10 }}>meus gols</text>
+        <text x={14} y={padding.top + innerH / 2} textAnchor="middle"
+          transform={`rotate(-90 14 ${padding.top + innerH / 2})`}
+          className="fill-foreground" style={{ fontSize: 13, fontWeight: 600 }}>Meus gols</text>
         {points.map((p, i) => {
-          const cx = padding.left + (p.x / maxX) * innerW + (p.idx % 3 - 1) * 3;
-          const cy = padding.top + innerH - (p.y / maxY) * innerH + Math.floor(p.idx / 3) * 3;
+          const cx = padding.left + (p.x / maxX) * innerW + (p.idx % 3 - 1) * 4;
+          const cy = padding.top + innerH - (p.y / maxY) * innerH + Math.floor(p.idx / 3) * 4;
+          const pct = p.x > 0 ? Math.round((p.y / p.x) * 100) : null;
           return (
-            <circle key={i} cx={cx} cy={cy} r={4.5}
-              fill={colorFor(p.result)} fillOpacity={0.75}
-              stroke="var(--background)" strokeWidth={1}>
-              <title>{formatDate(p.date)} — time {p.x}, você {p.y}</title>
+            <circle key={i} cx={cx} cy={cy} r={7}
+              fill={colorFor(p.result)} fillOpacity={0.8}
+              stroke="var(--background)" strokeWidth={1.5}>
+              <title>
+                {formatDate(p.date)} — time {p.x}, você {p.y}
+                {pct != null ? ` (${pct}%)` : ""}
+              </title>
             </circle>
           );
         })}
