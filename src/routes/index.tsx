@@ -145,6 +145,8 @@ function Index() {
   const [historyFilter, setHistoryFilter] = useState<"all" | "quinta" | "pelada" | "W" | "D" | "L">("all");
   const [compactHistory, setCompactHistory] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [teamPeriod, setTeamPeriod] = useState<PeriodKey>("all");
+  const [monthSummaryKey, setMonthSummaryKey] = useState<string | null>(null);
   const navigate = useNavigate();
   const todayStr = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
@@ -206,20 +208,7 @@ function Index() {
   }, [navigate]);
 
   // ---- Filtered matches by period ----
-  const filteredMatches = useMemo(() => {
-    if (period === "all") return matches;
-    if (typeof period === "string" && period.startsWith("m:")) {
-      const key = period.slice(2); // "YYYY-MM"
-      return matches.filter((m) => m.date.startsWith(key));
-    }
-    const now = new Date();
-    let from: Date;
-    if (period === "month") from = new Date(now.getFullYear(), now.getMonth(), 1);
-    else if (period === "year") from = new Date(now.getFullYear(), 0, 1);
-    else from = new Date(now.getTime() - Number(period) * 24 * 60 * 60 * 1000);
-    const fromStr = from.toISOString().slice(0, 10);
-    return matches.filter((m) => m.date >= fromStr);
-  }, [matches, period]);
+  const filteredMatches = useMemo(() => filterByPeriod(matches, period), [matches, period]);
 
   // Months available in match history (newest first)
   const availableMonths = useMemo(() => {
