@@ -280,40 +280,34 @@ function Index() {
   // Year summary (Spotify Wrapped style — always uses current calendar year)
   const yearSummary = useMemo(() => {
     const year = new Date().getFullYear();
-    const ms = matches.filter((m) => m.date.startsWith(String(year)));
-    if (!ms.length) return null;
-    const goals = ms.reduce((s, m) => s + m.goals, 0);
-    const assists = ms.reduce((s, m) => s + m.assists, 0);
-    const minutes = ms.reduce((s, m) => s + (m.duration_minutes || 60), 0);
-    const byGA = ms.reduce((b, m) => (m.goals + m.assists > b.goals + b.assists ? m : b));
-    // best month by G+A
-    const mmap = new Map<string, { goals: number; assists: number; games: number }>();
-    for (const m of ms) {
-      const k = m.date.slice(5, 7);
-      const cur = mmap.get(k) ?? { goals: 0, assists: 0, games: 0 };
-      cur.goals += m.goals; cur.assists += m.assists; cur.games += 1;
-      mmap.set(k, cur);
-    }
-    let bestMonthK = ""; let bestVal = -1;
-    for (const [k, v] of mmap) {
-      if (v.goals + v.assists > bestVal) { bestVal = v.goals + v.assists; bestMonthK = k; }
-    }
-    const withResult = ms.filter((m) => matchResult(m) != null);
-    let w = 0, d = 0, l = 0;
-    for (const m of withResult) {
-      const r = matchResult(m);
-      if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
-    }
-    return {
-      year, games: ms.length, goals, assists, ga: goals + assists,
-      minutes,
-      gPerGame: goals / ms.length,
-      aPerGame: assists / ms.length,
-      best: byGA,
-      bestMonthLabel: bestMonthK ? MONTH_FULL[Number(bestMonthK) - 1] : "—",
-      resultsTotal: withResult.length, w, d, l,
-    };
+    return buildSummary(
+      matches.filter((m) => m.date.startsWith(String(year))),
+      String(year),
+      true,
+    );
   }, [matches]);
+
+  // Months already finished (available for "Resumo do mês")
+  const closedMonths = useMemo(() => {
+    const now = new Date();
+    const curKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const set = new Set<string>();
+    for (const m of matches) {
+      const k = m.date.slice(0, 7);
+      if (k < curKey) set.add(k);
+    }
+    return [...set].sort((a, b) => b.localeCompare(a));
+  }, [matches]);
+
+  const monthSummary = useMemo(() => {
+    if (!monthSummaryKey) return null;
+    const [y, mo] = monthSummaryKey.split("-");
+    return buildSummary(
+      matches.filter((m) => m.date.startsWith(monthSummaryKey)),
+      `${MONTH_FULL[Number(mo) - 1]}/${y}`,
+      false,
+    );
+  }, [matches, monthSummaryKey]);
 
   // ---- Sequences (based on all-time, chronological asc) ----
   const sequences = useMemo(() => {
