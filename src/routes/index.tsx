@@ -1282,6 +1282,24 @@ function Index() {
                   <Sparkles className="h-3.5 w-3.5" /> Resumo do ano
                 </button>
               )}
+              {closedMonths.length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => { if (e.target.value) setMonthSummaryKey(e.target.value); }}
+                  className="rounded-md border-2 border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary outline-none hover:bg-primary/20"
+                  aria-label="Resumo do mês"
+                >
+                  <option value="">✨ Resumo do mês…</option>
+                  {closedMonths.map((k) => {
+                    const [y, mo] = k.split("-");
+                    return (
+                      <option key={k} value={k}>
+                        {MONTH_FULL[Number(mo) - 1]}/{y}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
               {sorted.length > 0 && (
                 <button onClick={() => setCompactHistory((v) => !v)}
                   className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -1384,7 +1402,12 @@ function Index() {
         onRemove={removeSample}
       />
 
-      <YearSummaryDialog open={summaryOpen} onOpenChange={setSummaryOpen} summary={yearSummary} />
+      <SummaryDialog open={summaryOpen} onOpenChange={setSummaryOpen} summary={yearSummary} />
+      <SummaryDialog
+        open={!!monthSummaryKey}
+        onOpenChange={(o) => !o && setMonthSummaryKey(null)}
+        summary={monthSummary}
+      />
     </main>
   );
 }
