@@ -65,6 +65,68 @@ const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
   { key: "year", label: "Este ano" },
 ];
 
+function filterByPeriod(list: Match[], period: PeriodKey) {
+  if (period === "all") return list;
+  if (typeof period === "string" && period.startsWith("m:")) {
+    const key = period.slice(2); // "YYYY-MM"
+    return list.filter((m) => m.date.startsWith(key));
+  }
+  const now = new Date();
+  let from: Date;
+  if (period === "month") from = new Date(now.getFullYear(), now.getMonth(), 1);
+  else if (period === "year") from = new Date(now.getFullYear(), 0, 1);
+  else from = new Date(now.getTime() - Number(period) * 24 * 60 * 60 * 1000);
+  const fromStr = from.toISOString().slice(0, 10);
+  return list.filter((m) => m.date >= fromStr);
+}
+
+interface Summary {
+  label: string;
+  games: number;
+  goals: number;
+  assists: number;
+  ga: number;
+  minutes: number;
+  gPerGame: number;
+  aPerGame: number;
+  best: Match;
+  bestMonthLabel: string | null;
+  resultsTotal: number;
+  w: number;
+  d: number;
+  l: number;
+}
+
+function buildSummary(ms: Match[], label: string, withBestMonth: boolean): Summary | null {
+  if (!ms.length) return null;
+  const goals = ms.reduce((s, m) => s + m.goals, 0);
+  const assists = ms.reduce((s, m) => s + m.assists, 0);
+  const minutes = ms.reduce((s, m) => s + (m.duration_minutes || 60), 0);
+  const best = ms.reduce((b, m) => (m.goals + m.assists > b.goals + b.assists ? m : b));
+  let bestMonthLabel: string | null = null;
+  if (withBestMonth) {
+    const mmap = new Map<string, number>();
+    for (const m of ms) {
+      const k = m.date.slice(5, 7);
+      mmap.set(k, (mmap.get(k) ?? 0) + m.goals + m.assists);
+    }
+    let bestK = ""; let bestVal = -1;
+    for (const [k, v] of mmap) if (v > bestVal) { bestVal = v; bestK = k; }
+    bestMonthLabel = bestK ? MONTH_FULL[Number(bestK) - 1] : "—";
+  }
+  const withResult = ms.filter((m) => matchResult(m) != null);
+  let w = 0, d = 0, l = 0;
+  for (const m of withResult) {
+    const r = matchResult(m);
+    if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
+  }
+  return {
+    label, games: ms.length, goals, assists, ga: goals + assists, minutes,
+    gPerGame: goals / ms.length, aPerGame: assists / ms.length,
+    best, bestMonthLabel, resultsTotal: withResult.length, w, d, l,
+  };
+}
+
 export const Route = createFileRoute("/")({
   component: Index,
 });
@@ -83,6 +145,8 @@ function Index() {
   const [historyFilter, setHistoryFilter] = useState<"all" | "quinta" | "pelada" | "W" | "D" | "L">("all");
   const [compactHistory, setCompactHistory] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [teamPeriod, setTeamPeriod] = useState<PeriodKey>("all");
+  const [monthSummaryKey, setMonthSummaryKey] = useState<string | null>(null);
   const navigate = useNavigate();
   const todayStr = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
@@ -144,20 +208,7 @@ function Index() {
   }, [navigate]);
 
   // ---- Filtered matches by period ----
-  const filteredMatches = useMemo(() => {
-    if (period === "all") return matches;
-    if (typeof period === "string" && period.startsWith("m:")) {
-      const key = period.slice(2); // "YYYY-MM"
-      return matches.filter((m) => m.date.startsWith(key));
-    }
-    const now = new Date();
-    let from: Date;
-    if (period === "month") from = new Date(now.getFullYear(), now.getMonth(), 1);
-    else if (period === "year") from = new Date(now.getFullYear(), 0, 1);
-    else from = new Date(now.getTime() - Number(period) * 24 * 60 * 60 * 1000);
-    const fromStr = from.toISOString().slice(0, 10);
-    return matches.filter((m) => m.date >= fromStr);
-  }, [matches, period]);
+  const filteredMatches = useMemo(() => filterByPeriod(matches, period), [matches, period]);
 
   // Months available in match history (newest first)
   const availableMonths = useMemo(() => {
@@ -229,40 +280,34 @@ function Index() {
   // Year summary (Spotify Wrapped style — always uses current calendar year)
   const yearSummary = useMemo(() => {
     const year = new Date().getFullYear();
-    const ms = matches.filter((m) => m.date.startsWith(String(year)));
-    if (!ms.length) return null;
-    const goals = ms.reduce((s, m) => s + m.goals, 0);
-    const assists = ms.reduce((s, m) => s + m.assists, 0);
-    const minutes = ms.reduce((s, m) => s + (m.duration_minutes || 60), 0);
-    const byGA = ms.reduce((b, m) => (m.goals + m.assists > b.goals + b.assists ? m : b));
-    // best month by G+A
-    const mmap = new Map<string, { goals: number; assists: number; games: number }>();
-    for (const m of ms) {
-      const k = m.date.slice(5, 7);
-      const cur = mmap.get(k) ?? { goals: 0, assists: 0, games: 0 };
-      cur.goals += m.goals; cur.assists += m.assists; cur.games += 1;
-      mmap.set(k, cur);
-    }
-    let bestMonthK = ""; let bestVal = -1;
-    for (const [k, v] of mmap) {
-      if (v.goals + v.assists > bestVal) { bestVal = v.goals + v.assists; bestMonthK = k; }
-    }
-    const withResult = ms.filter((m) => matchResult(m) != null);
-    let w = 0, d = 0, l = 0;
-    for (const m of withResult) {
-      const r = matchResult(m);
-      if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
-    }
-    return {
-      year, games: ms.length, goals, assists, ga: goals + assists,
-      minutes,
-      gPerGame: goals / ms.length,
-      aPerGame: assists / ms.length,
-      best: byGA,
-      bestMonthLabel: bestMonthK ? MONTH_FULL[Number(bestMonthK) - 1] : "—",
-      resultsTotal: withResult.length, w, d, l,
-    };
+    return buildSummary(
+      matches.filter((m) => m.date.startsWith(String(year))),
+      String(year),
+      true,
+    );
   }, [matches]);
+
+  // Months already finished (available for "Resumo do mês")
+  const closedMonths = useMemo(() => {
+    const now = new Date();
+    const curKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const set = new Set<string>();
+    for (const m of matches) {
+      const k = m.date.slice(0, 7);
+      if (k < curKey) set.add(k);
+    }
+    return [...set].sort((a, b) => b.localeCompare(a));
+  }, [matches]);
+
+  const monthSummary = useMemo(() => {
+    if (!monthSummaryKey) return null;
+    const [y, mo] = monthSummaryKey.split("-");
+    return buildSummary(
+      matches.filter((m) => m.date.startsWith(monthSummaryKey)),
+      `${MONTH_FULL[Number(mo) - 1]}/${y}`,
+      false,
+    );
+  }, [matches, monthSummaryKey]);
 
   // ---- Sequences (based on all-time, chronological asc) ----
   const sequences = useMemo(() => {
@@ -469,8 +514,16 @@ function Index() {
   }, [resultsMatches]);
 
   // ===== Team goal stats (since jun/2026) =====
+  const teamScored = useMemo(
+    () =>
+      filterByPeriod(matches, teamPeriod).filter(
+        (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
+      ),
+    [matches, teamPeriod],
+  );
+
   const teamStats = useMemo(() => {
-    const withScore = matches.filter(
+    const withScore = teamScored.filter(
       (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
     );
     if (!withScore.length) return null;
@@ -513,7 +566,27 @@ function Index() {
         pct: last5TeamGoals > 0 ? (last5MyGoals / last5TeamGoals) * 100 : 0,
       },
     };
-  }, [matches]);
+  }, [teamScored]);
+
+  // ===== Meus números por resultado (vitória × empate × derrota) =====
+  const byResultStats = useMemo(() => {
+    if (!teamScored.length) return null;
+    const group = (r: MatchResult) => {
+      const ms = teamScored.filter((m) => matchResult(m) === r);
+      const goals = ms.reduce((s, m) => s + m.goals, 0);
+      const assists = ms.reduce((s, m) => s + m.assists, 0);
+      const scored = ms.filter((m) => m.goals > 0).length;
+      const participated = ms.filter((m) => m.goals + m.assists > 0).length;
+      const games = ms.length;
+      return {
+        games, goals, assists, ga: goals + assists, scored, participated,
+        gPerGame: games ? goals / games : 0,
+        aPerGame: games ? assists / games : 0,
+        gaPerGame: games ? (goals + assists) / games : 0,
+      };
+    };
+    return { W: group("W"), D: group("D"), L: group("L") };
+  }, [teamScored]);
 
   // Rolling 5-match avg of G+A overlaid on line chart
   const chartWithRolling = useMemo(
@@ -530,17 +603,13 @@ function Index() {
   // Scatter data: team goals (x) × my goals (y)
   const scatterData = useMemo(
     () =>
-      matches
-        .filter(
-          (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
-        )
-        .map((m) => ({
+      teamScored.map((m) => ({
           x: m.my_team_score ?? 0,
           y: m.goals,
           date: m.date,
           result: matchResult(m),
         })),
-    [matches],
+    [teamScored],
   );
 
   // ---- BMI ----
@@ -969,6 +1038,16 @@ function Index() {
                       <p className="mb-4 text-xs text-muted-foreground">
                         Estatísticas de placar considerando jogos com o placar registrado.
                       </p>
+                      <PeriodFilterBar
+                        period={teamPeriod}
+                        onChange={setTeamPeriod}
+                        months={availableMonths}
+                        className="mb-4"
+                      />
+                      {teamStats.games === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nenhum jogo com placar neste período.</p>
+                      ) : (
+                      <>
                       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                         <StatCard label="Jogos com placar" value={teamStats.games} />
                         <StatCard label="Gols pró" value={teamStats.teamGoals} accent />
@@ -1001,7 +1080,7 @@ function Index() {
                           }
                         />
                       </div>
-                      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <div className="mb-4 grid grid-cols-2 gap-3">
                         <StatCard
                           label="Gols pró / jogo"
                           value={teamStats.avgFor.toFixed(2)}
@@ -1011,16 +1090,6 @@ function Index() {
                           label="Gols contra / jogo"
                           value={teamStats.avgAgainst.toFixed(2)}
                           small
-                        />
-                        <StatCard
-                          label="Marcou em vitórias"
-                          value={
-                            teamStats.totalWins > 0
-                              ? `${teamStats.winsWhenIScored}/${teamStats.totalWins}`
-                              : "—"
-                          }
-                          small
-                          accent
                         />
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1051,6 +1120,79 @@ function Index() {
                           </p>
                           <ScatterChart data={scatterData} />
                         </div>
+                      )}
+                      </>
+                      )}
+                    </div>
+                  )}
+
+                  {byResultStats && byResultStats.W.games + byResultStats.L.games > 0 && (
+                    <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <h3 className="text-base font-semibold">Seus números por resultado</h3>
+                        <span className="rounded-full border-2 border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                          desde jun/2026
+                        </span>
+                      </div>
+                      <p className="mb-4 text-xs text-muted-foreground">
+                        Compara quantos gols e assistências você faz quando o time vence, empata ou perde
+                        (usa o mesmo filtro de período da seção “Gols do time”).
+                      </p>
+                      <ResultSplitChart d={byResultStats} />
+                      <div className="mt-5 grid grid-cols-2 gap-3">
+                        <StatCard
+                          label="Marcou em vitórias"
+                          value={
+                            byResultStats.W.games > 0
+                              ? `${byResultStats.W.scored}/${byResultStats.W.games}`
+                              : "—"
+                          }
+                          small
+                          accent
+                          sub={
+                            byResultStats.W.games > 0
+                              ? `${Math.round((byResultStats.W.scored / byResultStats.W.games) * 100)}% das vitórias`
+                              : "Sem vitórias no período"
+                          }
+                        />
+                        <StatCard
+                          label="Marcou em derrotas"
+                          value={
+                            byResultStats.L.games > 0
+                              ? `${byResultStats.L.scored}/${byResultStats.L.games}`
+                              : "—"
+                          }
+                          small
+                          sub={
+                            byResultStats.L.games > 0
+                              ? `${Math.round((byResultStats.L.scored / byResultStats.L.games) * 100)}% das derrotas`
+                              : "Sem derrotas no período"
+                          }
+                        />
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <StatCard
+                          label="G+A / jogo em vitórias"
+                          value={byResultStats.W.gaPerGame.toFixed(2)}
+                          small
+                          highlight
+                          sub={`${byResultStats.W.goals}G + ${byResultStats.W.assists}A em ${byResultStats.W.games} jogos`}
+                        />
+                        <StatCard
+                          label="G+A / jogo em derrotas"
+                          value={byResultStats.L.gaPerGame.toFixed(2)}
+                          small
+                          sub={`${byResultStats.L.goals}G + ${byResultStats.L.assists}A em ${byResultStats.L.games} jogos`}
+                        />
+                      </div>
+                      {byResultStats.W.games > 0 && byResultStats.L.games > 0 && (
+                        <p className="mt-4 rounded-lg border-2 border-dashed border-border bg-background/30 p-3 text-xs text-muted-foreground">
+                          {byResultStats.W.gaPerGame > byResultStats.L.gaPerGame
+                            ? `Você participa de ${(byResultStats.W.gaPerGame / (byResultStats.L.gaPerGame || 1)).toFixed(1)}× mais gols nas vitórias do que nas derrotas — sua hipótese se confirma no período.`
+                            : byResultStats.W.gaPerGame < byResultStats.L.gaPerGame
+                              ? "Curiosamente, sua média de participações é maior nas derrotas do que nas vitórias no período."
+                              : "Sua média de participações é igual em vitórias e derrotas no período."}
+                        </p>
                       )}
                     </div>
                   )}
@@ -1237,6 +1379,24 @@ function Index() {
                   <Sparkles className="h-3.5 w-3.5" /> Resumo do ano
                 </button>
               )}
+              {closedMonths.length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => { if (e.target.value) setMonthSummaryKey(e.target.value); }}
+                  className="rounded-md border-2 border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary outline-none hover:bg-primary/20"
+                  aria-label="Resumo do mês"
+                >
+                  <option value="">✨ Resumo do mês…</option>
+                  {closedMonths.map((k) => {
+                    const [y, mo] = k.split("-");
+                    return (
+                      <option key={k} value={k}>
+                        {MONTH_FULL[Number(mo) - 1]}/{y}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
               {sorted.length > 0 && (
                 <button onClick={() => setCompactHistory((v) => !v)}
                   className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -1339,7 +1499,12 @@ function Index() {
         onRemove={removeSample}
       />
 
-      <YearSummaryDialog open={summaryOpen} onOpenChange={setSummaryOpen} summary={yearSummary} />
+      <SummaryDialog open={summaryOpen} onOpenChange={setSummaryOpen} summary={yearSummary} />
+      <SummaryDialog
+        open={!!monthSummaryKey}
+        onOpenChange={(o) => !o && setMonthSummaryKey(null)}
+        summary={monthSummary}
+      />
     </main>
   );
 }
@@ -1383,6 +1548,113 @@ function StatCard({
         {animate ? Math.round(displayed).toLocaleString("pt-BR") : value}
       </p>
       {sub && <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">{sub}</p>}
+    </div>
+  );
+}
+
+function PeriodFilterBar({
+  period, onChange, months, className = "",
+}: {
+  period: PeriodKey;
+  onChange: (p: PeriodKey) => void;
+  months: string[];
+  className?: string;
+}) {
+  const isMonth = typeof period === "string" && period.startsWith("m:");
+  return (
+    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+      <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+      {PERIOD_OPTIONS.map((p) => (
+        <button
+          key={p.key}
+          onClick={() => onChange(p.key)}
+          className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+            period === p.key
+              ? "border-primary bg-primary/15 text-primary"
+              : "border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {p.label}
+        </button>
+      ))}
+      {months.length > 0 && (
+        <select
+          value={isMonth ? period : ""}
+          onChange={(e) => { if (e.target.value) onChange(e.target.value as PeriodKey); }}
+          className={`rounded-full border px-3 py-1 text-xs outline-none transition-colors ${
+            isMonth
+              ? "border-primary bg-primary/15 text-primary"
+              : "border-border bg-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <option value="">Mês específico…</option>
+          {months.map((k) => {
+            const [y, mo] = k.split("-");
+            return (
+              <option key={k} value={`m:${k}`}>
+                {MONTH_FULL[Number(mo) - 1]}/{y}
+              </option>
+            );
+          })}
+        </select>
+      )}
+    </div>
+  );
+}
+
+function ResultSplitChart({
+  d,
+}: {
+  d: Record<"W" | "D" | "L", { games: number; goals: number; assists: number; gPerGame: number; aPerGame: number; gaPerGame: number }>;
+}) {
+  const rows: { key: "W" | "D" | "L"; label: string }[] = [
+    { key: "W", label: "Vitórias" },
+    { key: "D", label: "Empates" },
+    { key: "L", label: "Derrotas" },
+  ];
+  const max = Math.max(
+    0.01,
+    ...rows.map((r) => Math.max(d[r.key].gPerGame, d[r.key].aPerGame)),
+  );
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4 text-xs">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Gols / jogo
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-accent" /> Assist. / jogo
+        </span>
+      </div>
+      {rows.map((r) => {
+        const s = d[r.key];
+        return (
+          <div key={r.key}>
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="font-medium text-foreground">
+                {r.label} <span className="text-muted-foreground">({s.games} jogos)</span>
+              </span>
+              <span className="tabular-nums text-muted-foreground">
+                {s.games ? `${s.gaPerGame.toFixed(2)} G+A / jogo` : "—"}
+              </span>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="h-3.5 flex-1 overflow-hidden rounded-sm bg-muted/40">
+                  <div className="h-full rounded-sm bg-primary" style={{ width: `${(s.gPerGame / max) * 100}%` }} />
+                </div>
+                <span className="w-10 text-right text-xs tabular-nums text-primary">{s.gPerGame.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3.5 flex-1 overflow-hidden rounded-sm bg-muted/40">
+                  <div className="h-full rounded-sm bg-accent" style={{ width: `${(s.aPerGame / max) * 100}%` }} />
+                </div>
+                <span className="w-10 text-right text-xs tabular-nums text-accent">{s.aPerGame.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -2057,24 +2329,19 @@ function MonthlyBarChart({
   );
 }
 
-function YearSummaryDialog({
+function SummaryDialog({
   open, onOpenChange, summary,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  summary: {
-    year: number; games: number; goals: number; assists: number; ga: number;
-    minutes: number; gPerGame: number; aPerGame: number;
-    best: Match; bestMonthLabel: string;
-    resultsTotal: number; w: number; d: number; l: number;
-  } | null;
+  summary: Summary | null;
 }) {
   async function shareSummary() {
     if (!summary) return;
     const text =
-      `⚽ Meu Placar — Temporada ${summary.year}\n` +
+      `⚽ Meu Placar — ${summary.label}\n` +
       `${summary.games} jogos · ${summary.goals} gols · ${summary.assists} assistências (${summary.ga} participações)\n` +
-      `Melhor mês: ${summary.bestMonthLabel}\n` +
+      (summary.bestMonthLabel ? `Melhor mês: ${summary.bestMonthLabel}\n` : "") +
       (summary.resultsTotal ? `Resultados: ${summary.w}V ${summary.d}E ${summary.l}D\n` : "") +
       `Melhor partida: ${summary.best.goals}G + ${summary.best.assists}A em ${formatDate(summary.best.date)}`;
     if (navigator.share) {
@@ -2090,11 +2357,11 @@ function YearSummaryDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>
             <span className="inline-flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" /> Resumo de {summary?.year ?? ""}
+              <Sparkles className="h-5 w-5 text-primary" /> Resumo de {summary?.label ?? ""}
             </span>
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Sua temporada em números — pronto para imprimir ou compartilhar.
+            Seus números do período — pronto para imprimir ou compartilhar.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {summary && (
@@ -2120,10 +2387,17 @@ function YearSummaryDialog({
                   {(summary.gPerGame + summary.aPerGame).toFixed(2)}
                 </p>
               </div>
-              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Melhor mês</p>
-                <p className="mt-0.5 text-lg font-semibold">{summary.bestMonthLabel}</p>
-              </div>
+              {summary.bestMonthLabel ? (
+                <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Melhor mês</p>
+                  <p className="mt-0.5 text-lg font-semibold">{summary.bestMonthLabel}</p>
+                </div>
+              ) : (
+                <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Participações</p>
+                  <p className="mt-0.5 text-lg font-semibold tabular-nums">{summary.ga}</p>
+                </div>
+              )}
               <div className="rounded-lg border-2 border-border bg-background/40 p-3">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Minutos jogados</p>
                 <p className="mt-0.5 text-lg font-semibold tabular-nums">
