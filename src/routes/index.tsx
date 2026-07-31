@@ -2102,24 +2102,19 @@ function MonthlyBarChart({
   );
 }
 
-function YearSummaryDialog({
+function SummaryDialog({
   open, onOpenChange, summary,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  summary: {
-    year: number; games: number; goals: number; assists: number; ga: number;
-    minutes: number; gPerGame: number; aPerGame: number;
-    best: Match; bestMonthLabel: string;
-    resultsTotal: number; w: number; d: number; l: number;
-  } | null;
+  summary: Summary | null;
 }) {
   async function shareSummary() {
     if (!summary) return;
     const text =
-      `⚽ Meu Placar — Temporada ${summary.year}\n` +
+      `⚽ Meu Placar — ${summary.label}\n` +
       `${summary.games} jogos · ${summary.goals} gols · ${summary.assists} assistências (${summary.ga} participações)\n` +
-      `Melhor mês: ${summary.bestMonthLabel}\n` +
+      (summary.bestMonthLabel ? `Melhor mês: ${summary.bestMonthLabel}\n` : "") +
       (summary.resultsTotal ? `Resultados: ${summary.w}V ${summary.d}E ${summary.l}D\n` : "") +
       `Melhor partida: ${summary.best.goals}G + ${summary.best.assists}A em ${formatDate(summary.best.date)}`;
     if (navigator.share) {
@@ -2135,11 +2130,11 @@ function YearSummaryDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>
             <span className="inline-flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" /> Resumo de {summary?.year ?? ""}
+              <Sparkles className="h-5 w-5 text-primary" /> Resumo de {summary?.label ?? ""}
             </span>
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Sua temporada em números — pronto para imprimir ou compartilhar.
+            Seus números do período — pronto para imprimir ou compartilhar.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {summary && (
@@ -2165,10 +2160,17 @@ function YearSummaryDialog({
                   {(summary.gPerGame + summary.aPerGame).toFixed(2)}
                 </p>
               </div>
-              <div className="rounded-lg border-2 border-border bg-background/40 p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Melhor mês</p>
-                <p className="mt-0.5 text-lg font-semibold">{summary.bestMonthLabel}</p>
-              </div>
+              {summary.bestMonthLabel ? (
+                <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Melhor mês</p>
+                  <p className="mt-0.5 text-lg font-semibold">{summary.bestMonthLabel}</p>
+                </div>
+              ) : (
+                <div className="rounded-lg border-2 border-border bg-background/40 p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Participações</p>
+                  <p className="mt-0.5 text-lg font-semibold tabular-nums">{summary.ga}</p>
+                </div>
+              )}
               <div className="rounded-lg border-2 border-border bg-background/40 p-3">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Minutos jogados</p>
                 <p className="mt-0.5 text-lg font-semibold tabular-nums">
