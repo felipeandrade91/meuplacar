@@ -65,6 +65,68 @@ const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
   { key: "year", label: "Este ano" },
 ];
 
+function filterByPeriod(list: Match[], period: PeriodKey) {
+  if (period === "all") return list;
+  if (typeof period === "string" && period.startsWith("m:")) {
+    const key = period.slice(2); // "YYYY-MM"
+    return list.filter((m) => m.date.startsWith(key));
+  }
+  const now = new Date();
+  let from: Date;
+  if (period === "month") from = new Date(now.getFullYear(), now.getMonth(), 1);
+  else if (period === "year") from = new Date(now.getFullYear(), 0, 1);
+  else from = new Date(now.getTime() - Number(period) * 24 * 60 * 60 * 1000);
+  const fromStr = from.toISOString().slice(0, 10);
+  return list.filter((m) => m.date >= fromStr);
+}
+
+interface Summary {
+  label: string;
+  games: number;
+  goals: number;
+  assists: number;
+  ga: number;
+  minutes: number;
+  gPerGame: number;
+  aPerGame: number;
+  best: Match;
+  bestMonthLabel: string | null;
+  resultsTotal: number;
+  w: number;
+  d: number;
+  l: number;
+}
+
+function buildSummary(ms: Match[], label: string, withBestMonth: boolean): Summary | null {
+  if (!ms.length) return null;
+  const goals = ms.reduce((s, m) => s + m.goals, 0);
+  const assists = ms.reduce((s, m) => s + m.assists, 0);
+  const minutes = ms.reduce((s, m) => s + (m.duration_minutes || 60), 0);
+  const best = ms.reduce((b, m) => (m.goals + m.assists > b.goals + b.assists ? m : b));
+  let bestMonthLabel: string | null = null;
+  if (withBestMonth) {
+    const mmap = new Map<string, number>();
+    for (const m of ms) {
+      const k = m.date.slice(5, 7);
+      mmap.set(k, (mmap.get(k) ?? 0) + m.goals + m.assists);
+    }
+    let bestK = ""; let bestVal = -1;
+    for (const [k, v] of mmap) if (v > bestVal) { bestVal = v; bestK = k; }
+    bestMonthLabel = bestK ? MONTH_FULL[Number(bestK) - 1] : "—";
+  }
+  const withResult = ms.filter((m) => matchResult(m) != null);
+  let w = 0, d = 0, l = 0;
+  for (const m of withResult) {
+    const r = matchResult(m);
+    if (r === "W") w++; else if (r === "D") d++; else if (r === "L") l++;
+  }
+  return {
+    label, games: ms.length, goals, assists, ga: goals + assists, minutes,
+    gPerGame: goals / ms.length, aPerGame: assists / ms.length,
+    best, bestMonthLabel, resultsTotal: withResult.length, w, d, l,
+  };
+}
+
 export const Route = createFileRoute("/")({
   component: Index,
 });
