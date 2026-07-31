@@ -514,8 +514,16 @@ function Index() {
   }, [resultsMatches]);
 
   // ===== Team goal stats (since jun/2026) =====
+  const teamScored = useMemo(
+    () =>
+      filterByPeriod(matches, teamPeriod).filter(
+        (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
+      ),
+    [matches, teamPeriod],
+  );
+
   const teamStats = useMemo(() => {
-    const withScore = matches.filter(
+    const withScore = teamScored.filter(
       (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
     );
     if (!withScore.length) return null;
@@ -558,7 +566,27 @@ function Index() {
         pct: last5TeamGoals > 0 ? (last5MyGoals / last5TeamGoals) * 100 : 0,
       },
     };
-  }, [matches]);
+  }, [teamScored]);
+
+  // ===== Meus números por resultado (vitória × empate × derrota) =====
+  const byResultStats = useMemo(() => {
+    if (!teamScored.length) return null;
+    const group = (r: MatchResult) => {
+      const ms = teamScored.filter((m) => matchResult(m) === r);
+      const goals = ms.reduce((s, m) => s + m.goals, 0);
+      const assists = ms.reduce((s, m) => s + m.assists, 0);
+      const scored = ms.filter((m) => m.goals > 0).length;
+      const participated = ms.filter((m) => m.goals + m.assists > 0).length;
+      const games = ms.length;
+      return {
+        games, goals, assists, ga: goals + assists, scored, participated,
+        gPerGame: games ? goals / games : 0,
+        aPerGame: games ? assists / games : 0,
+        gaPerGame: games ? (goals + assists) / games : 0,
+      };
+    };
+    return { W: group("W"), D: group("D"), L: group("L") };
+  }, [teamScored]);
 
   // Rolling 5-match avg of G+A overlaid on line chart
   const chartWithRolling = useMemo(
@@ -575,17 +603,13 @@ function Index() {
   // Scatter data: team goals (x) × my goals (y)
   const scatterData = useMemo(
     () =>
-      matches
-        .filter(
-          (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
-        )
-        .map((m) => ({
+      teamScored.map((m) => ({
           x: m.my_team_score ?? 0,
           y: m.goals,
           date: m.date,
           result: matchResult(m),
         })),
-    [matches],
+    [teamScored],
   );
 
   // ---- BMI ----
