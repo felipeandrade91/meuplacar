@@ -1038,6 +1038,16 @@ function Index() {
                       <p className="mb-4 text-xs text-muted-foreground">
                         Estatísticas de placar considerando jogos com o placar registrado.
                       </p>
+                      <PeriodFilterBar
+                        period={teamPeriod}
+                        onChange={setTeamPeriod}
+                        months={availableMonths}
+                        className="mb-4"
+                      />
+                      {teamStats.games === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nenhum jogo com placar neste período.</p>
+                      ) : (
+                      <>
                       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                         <StatCard label="Jogos com placar" value={teamStats.games} />
                         <StatCard label="Gols pró" value={teamStats.teamGoals} accent />
@@ -1070,7 +1080,7 @@ function Index() {
                           }
                         />
                       </div>
-                      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <div className="mb-4 grid grid-cols-2 gap-3">
                         <StatCard
                           label="Gols pró / jogo"
                           value={teamStats.avgFor.toFixed(2)}
@@ -1080,16 +1090,6 @@ function Index() {
                           label="Gols contra / jogo"
                           value={teamStats.avgAgainst.toFixed(2)}
                           small
-                        />
-                        <StatCard
-                          label="Marcou em vitórias"
-                          value={
-                            teamStats.totalWins > 0
-                              ? `${teamStats.winsWhenIScored}/${teamStats.totalWins}`
-                              : "—"
-                          }
-                          small
-                          accent
                         />
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1120,6 +1120,79 @@ function Index() {
                           </p>
                           <ScatterChart data={scatterData} />
                         </div>
+                      )}
+                      </>
+                      )}
+                    </div>
+                  )}
+
+                  {byResultStats && byResultStats.W.games + byResultStats.L.games > 0 && (
+                    <div className="mb-6 rounded-2xl border-2 border-border bg-card p-5">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <h3 className="text-base font-semibold">Seus números por resultado</h3>
+                        <span className="rounded-full border-2 border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                          desde jun/2026
+                        </span>
+                      </div>
+                      <p className="mb-4 text-xs text-muted-foreground">
+                        Compara quantos gols e assistências você faz quando o time vence, empata ou perde
+                        (usa o mesmo filtro de período da seção “Gols do time”).
+                      </p>
+                      <ResultSplitChart d={byResultStats} />
+                      <div className="mt-5 grid grid-cols-2 gap-3">
+                        <StatCard
+                          label="Marcou em vitórias"
+                          value={
+                            byResultStats.W.games > 0
+                              ? `${byResultStats.W.scored}/${byResultStats.W.games}`
+                              : "—"
+                          }
+                          small
+                          accent
+                          sub={
+                            byResultStats.W.games > 0
+                              ? `${Math.round((byResultStats.W.scored / byResultStats.W.games) * 100)}% das vitórias`
+                              : "Sem vitórias no período"
+                          }
+                        />
+                        <StatCard
+                          label="Marcou em derrotas"
+                          value={
+                            byResultStats.L.games > 0
+                              ? `${byResultStats.L.scored}/${byResultStats.L.games}`
+                              : "—"
+                          }
+                          small
+                          sub={
+                            byResultStats.L.games > 0
+                              ? `${Math.round((byResultStats.L.scored / byResultStats.L.games) * 100)}% das derrotas`
+                              : "Sem derrotas no período"
+                          }
+                        />
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <StatCard
+                          label="G+A / jogo em vitórias"
+                          value={byResultStats.W.gaPerGame.toFixed(2)}
+                          small
+                          highlight
+                          sub={`${byResultStats.W.goals}G + ${byResultStats.W.assists}A em ${byResultStats.W.games} jogos`}
+                        />
+                        <StatCard
+                          label="G+A / jogo em derrotas"
+                          value={byResultStats.L.gaPerGame.toFixed(2)}
+                          small
+                          sub={`${byResultStats.L.goals}G + ${byResultStats.L.assists}A em ${byResultStats.L.games} jogos`}
+                        />
+                      </div>
+                      {byResultStats.W.games > 0 && byResultStats.L.games > 0 && (
+                        <p className="mt-4 rounded-lg border-2 border-dashed border-border bg-background/30 p-3 text-xs text-muted-foreground">
+                          {byResultStats.W.gaPerGame > byResultStats.L.gaPerGame
+                            ? `Você participa de ${(byResultStats.W.gaPerGame / (byResultStats.L.gaPerGame || 1)).toFixed(1)}× mais gols nas vitórias do que nas derrotas — sua hipótese se confirma no período.`
+                            : byResultStats.W.gaPerGame < byResultStats.L.gaPerGame
+                              ? "Curiosamente, sua média de participações é maior nas derrotas do que nas vitórias no período."
+                              : "Sua média de participações é igual em vitórias e derrotas no período."}
+                        </p>
                       )}
                     </div>
                   )}
