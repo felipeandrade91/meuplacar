@@ -1552,6 +1552,113 @@ function StatCard({
   );
 }
 
+function PeriodFilterBar({
+  period, onChange, months, className = "",
+}: {
+  period: PeriodKey;
+  onChange: (p: PeriodKey) => void;
+  months: string[];
+  className?: string;
+}) {
+  const isMonth = typeof period === "string" && period.startsWith("m:");
+  return (
+    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+      <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+      {PERIOD_OPTIONS.map((p) => (
+        <button
+          key={p.key}
+          onClick={() => onChange(p.key)}
+          className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+            period === p.key
+              ? "border-primary bg-primary/15 text-primary"
+              : "border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {p.label}
+        </button>
+      ))}
+      {months.length > 0 && (
+        <select
+          value={isMonth ? period : ""}
+          onChange={(e) => { if (e.target.value) onChange(e.target.value as PeriodKey); }}
+          className={`rounded-full border px-3 py-1 text-xs outline-none transition-colors ${
+            isMonth
+              ? "border-primary bg-primary/15 text-primary"
+              : "border-border bg-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <option value="">Mês específico…</option>
+          {months.map((k) => {
+            const [y, mo] = k.split("-");
+            return (
+              <option key={k} value={`m:${k}`}>
+                {MONTH_FULL[Number(mo) - 1]}/{y}
+              </option>
+            );
+          })}
+        </select>
+      )}
+    </div>
+  );
+}
+
+function ResultSplitChart({
+  d,
+}: {
+  d: Record<"W" | "D" | "L", { games: number; goals: number; assists: number; gPerGame: number; aPerGame: number; gaPerGame: number }>;
+}) {
+  const rows: { key: "W" | "D" | "L"; label: string }[] = [
+    { key: "W", label: "Vitórias" },
+    { key: "D", label: "Empates" },
+    { key: "L", label: "Derrotas" },
+  ];
+  const max = Math.max(
+    0.01,
+    ...rows.map((r) => Math.max(d[r.key].gPerGame, d[r.key].aPerGame)),
+  );
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4 text-xs">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Gols / jogo
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-accent" /> Assist. / jogo
+        </span>
+      </div>
+      {rows.map((r) => {
+        const s = d[r.key];
+        return (
+          <div key={r.key}>
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="font-medium text-foreground">
+                {r.label} <span className="text-muted-foreground">({s.games} jogos)</span>
+              </span>
+              <span className="tabular-nums text-muted-foreground">
+                {s.games ? `${s.gaPerGame.toFixed(2)} G+A / jogo` : "—"}
+              </span>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="h-3.5 flex-1 overflow-hidden rounded-sm bg-muted/40">
+                  <div className="h-full rounded-sm bg-primary" style={{ width: `${(s.gPerGame / max) * 100}%` }} />
+                </div>
+                <span className="w-10 text-right text-xs tabular-nums text-primary">{s.gPerGame.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3.5 flex-1 overflow-hidden rounded-sm bg-muted/40">
+                  <div className="h-full rounded-sm bg-accent" style={{ width: `${(s.aPerGame / max) * 100}%` }} />
+                </div>
+                <span className="w-10 text-right text-xs tabular-nums text-accent">{s.aPerGame.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function PhysicalCard({
   icon, label, value, hint, accent,
 }: { icon: React.ReactNode; label: string; value: string; hint?: string; accent?: boolean }) {
