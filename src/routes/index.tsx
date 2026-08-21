@@ -524,9 +524,9 @@ function Index() {
   );
 
   const teamStats = useMemo(() => {
-    const withScore = teamScored.filter(
-      (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
-    );
+    const withScore = teamScored
+      .filter((m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null)
+      .sort((a, b) => a.date.localeCompare(b.date)); // ordem crescente por data
     if (!withScore.length) return null;
     const teamGoals = withScore.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
     const oppGoals = withScore.reduce((s, m) => s + (m.opponent_score ?? 0), 0);
@@ -541,7 +541,7 @@ function Index() {
     const iScored = withScore.filter((m) => m.goals > 0);
     const winsWhenIScored = iScored.filter((m) => matchResult(m) === "W").length;
     const totalWins = withScore.filter((m) => matchResult(m) === "W").length;
-    // Participação nos últimos 5 jogos com placar
+    // Participação nos 5 jogos mais recentes com placar
     const last5 = withScore.slice(-5);
     const last5TeamGoals = last5.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
     const last5MyGoals = last5.reduce((s, m) => s + m.goals, 0);
