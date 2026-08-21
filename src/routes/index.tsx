@@ -1768,9 +1768,10 @@ function CompareCell({ label, cur, prev }: { label: string; cur: number; prev: n
   );
 }
 
-function DistributionDonut({ d }: { d: { total: number; withGoal: number; onlyAssist: number; blank: number } }) {
+function DistributionDonut({ d }: { d: { total: number; onlyGoal: number; goalAndAssist: number; onlyAssist: number; blank: number } }) {
   const segs = [
-    { label: "Com gol", value: d.withGoal, color: "var(--primary)" },
+    { label: "Só gol(s)", value: d.onlyGoal, color: "var(--primary)" },
+    { label: "Gol(s) + assist.", value: d.goalAndAssist, color: "color-mix(in oklab, var(--primary) 55%, white)" },
     { label: "Só assist.", value: d.onlyAssist, color: "var(--accent)" },
     { label: "Em branco", value: d.blank, color: "var(--muted-foreground)" },
   ];
