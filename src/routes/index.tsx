@@ -402,13 +402,14 @@ function Index() {
   const distribution = useMemo(() => {
     const total = matches.length;
     if (!total) return null;
-    let withGoal = 0, onlyAssist = 0, blank = 0;
+    let onlyGoal = 0, goalAndAssist = 0, onlyAssist = 0, blank = 0;
     for (const m of matches) {
-      if (m.goals > 0) withGoal += 1;
+      if (m.goals > 0 && m.assists > 0) goalAndAssist += 1;
+      else if (m.goals > 0) onlyGoal += 1;
       else if (m.assists > 0) onlyAssist += 1;
       else blank += 1;
     }
-    return { total, withGoal, onlyAssist, blank };
+    return { total, onlyGoal, goalAndAssist, onlyAssist, blank };
   }, [matches]);
 
   // ===== Victory metrics (a partir de 2026-06-01) =====
