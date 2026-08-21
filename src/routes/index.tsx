@@ -402,13 +402,14 @@ function Index() {
   const distribution = useMemo(() => {
     const total = matches.length;
     if (!total) return null;
-    let withGoal = 0, onlyAssist = 0, blank = 0;
+    let onlyGoal = 0, goalAndAssist = 0, onlyAssist = 0, blank = 0;
     for (const m of matches) {
-      if (m.goals > 0) withGoal += 1;
+      if (m.goals > 0 && m.assists > 0) goalAndAssist += 1;
+      else if (m.goals > 0) onlyGoal += 1;
       else if (m.assists > 0) onlyAssist += 1;
       else blank += 1;
     }
-    return { total, withGoal, onlyAssist, blank };
+    return { total, onlyGoal, goalAndAssist, onlyAssist, blank };
   }, [matches]);
 
   // ===== Victory metrics (a partir de 2026-06-01) =====
@@ -523,9 +524,9 @@ function Index() {
   );
 
   const teamStats = useMemo(() => {
-    const withScore = teamScored.filter(
-      (m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null,
-    );
+    const withScore = teamScored
+      .filter((m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null)
+      .sort((a, b) => a.date.localeCompare(b.date)); // ordem crescente por data
     if (!withScore.length) return null;
     const teamGoals = withScore.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
     const oppGoals = withScore.reduce((s, m) => s + (m.opponent_score ?? 0), 0);
@@ -540,7 +541,7 @@ function Index() {
     const iScored = withScore.filter((m) => m.goals > 0);
     const winsWhenIScored = iScored.filter((m) => matchResult(m) === "W").length;
     const totalWins = withScore.filter((m) => matchResult(m) === "W").length;
-    // Participação nos últimos 5 jogos com placar
+    // Participação nos 5 jogos mais recentes com placar
     const last5 = withScore.slice(-5);
     const last5TeamGoals = last5.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
     const last5MyGoals = last5.reduce((s, m) => s + m.goals, 0);
@@ -1767,9 +1768,10 @@ function CompareCell({ label, cur, prev }: { label: string; cur: number; prev: n
   );
 }
 
-function DistributionDonut({ d }: { d: { total: number; withGoal: number; onlyAssist: number; blank: number } }) {
+function DistributionDonut({ d }: { d: { total: number; onlyGoal: number; goalAndAssist: number; onlyAssist: number; blank: number } }) {
   const segs = [
-    { label: "Com gol", value: d.withGoal, color: "var(--primary)" },
+    { label: "Só gol(s)", value: d.onlyGoal, color: "var(--primary)" },
+    { label: "Gol(s) + assist.", value: d.goalAndAssist, color: "color-mix(in oklab, var(--primary) 55%, white)" },
     { label: "Só assist.", value: d.onlyAssist, color: "var(--accent)" },
     { label: "Em branco", value: d.blank, color: "var(--muted-foreground)" },
   ];
