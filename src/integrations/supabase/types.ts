@@ -51,6 +51,7 @@ export type Database = {
           id: string
           location: string | null
           my_team_score: number | null
+          notes: string | null
           opponent_score: number | null
           type: string
           user_id: string | null
@@ -64,6 +65,7 @@ export type Database = {
           id?: string
           location?: string | null
           my_team_score?: number | null
+          notes?: string | null
           opponent_score?: number | null
           type: string
           user_id?: string | null
@@ -77,6 +79,7 @@ export type Database = {
           id?: string
           location?: string | null
           my_team_score?: number | null
+          notes?: string | null
           opponent_score?: number | null
           type?: string
           user_id?: string | null

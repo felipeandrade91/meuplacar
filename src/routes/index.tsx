@@ -26,6 +26,7 @@ interface Match {
   duration_minutes: number;
   my_team_score?: number | null;
   opponent_score?: number | null;
+  notes?: string | null;
 }
 
 interface Profile {
@@ -158,6 +159,7 @@ function Index() {
     duration_minutes: 60,
     my_team_score: "" as string,
     opponent_score: "" as string,
+    notes: "" as string,
   });
 
   useEffect(() => {
@@ -188,6 +190,7 @@ function Index() {
           duration_minutes: (m as { duration_minutes?: number }).duration_minutes ?? 60,
           my_team_score: (m as { my_team_score?: number | null }).my_team_score ?? null,
           opponent_score: (m as { opponent_score?: number | null }).opponent_score ?? null,
+          notes: (m as { notes?: string | null }).notes ?? null,
         })));
       }
       if (!profileRes.error && profileRes.data) {
