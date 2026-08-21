@@ -159,6 +159,7 @@ function Index() {
     duration_minutes: 60,
     my_team_score: "" as string,
     opponent_score: "" as string,
+    notes: "" as string,
   });
 
   useEffect(() => {
