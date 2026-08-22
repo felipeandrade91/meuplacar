@@ -2132,18 +2132,12 @@ function MatchRow({
               <span className="text-muted-foreground">Adversário</span>
             </div>
           )}
-          {editing ? (
+          {editing && (
             <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
               placeholder="Anotações do jogo…"
               className="mt-1.5 w-full resize-y rounded-md border-2 border-border bg-input/40 px-2 py-1 text-xs text-foreground outline-none focus:border-primary" />
-          ) : (
-            match.notes && !compact && (
-              <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
-                <StickyNote className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
-                <span className="italic">{match.notes}</span>
-              </p>
-            )
           )}
+
         </div>
       </div>
       <div className="flex items-center gap-2 text-sm">
