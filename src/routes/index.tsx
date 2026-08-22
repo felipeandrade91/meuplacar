@@ -1093,6 +1093,23 @@ function Index() {
                           }
                         />
                       </div>
+                      <div className="mb-3">
+                        <StatCard
+                          label="Impacto decisivo"
+                          value={
+                            teamStats.totalWins > 0
+                              ? `${teamStats.decisivePct.toFixed(0)}%`
+                              : "—"
+                          }
+                          accent
+                          sub={
+                            teamStats.totalWins > 0
+                              ? `${teamStats.decisiveWins} de ${teamStats.totalWins} vitórias em que seus gols + assistências foram iguais ou maiores que a margem do placar`
+                              : "Sem vitórias registradas"
+                          }
+                        />
+                      </div>
+
                       <div className="mb-4 grid grid-cols-2 gap-3">
                         <StatCard
                           label="Gols pró / jogo"
