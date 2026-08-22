@@ -571,8 +571,9 @@ function Index() {
       totalWins,
       decisiveWins,
       decisivePct: totalWins ? (decisiveWins / totalWins) * 100 : 0,
-
+      recent: {
         games: last5.length,
+
         myGoals: last5MyGoals,
         teamGoals: last5TeamGoals,
         pct: last5TeamGoals > 0 ? (last5MyGoals / last5TeamGoals) * 100 : 0,
