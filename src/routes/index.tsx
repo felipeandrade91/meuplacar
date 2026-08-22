@@ -1358,19 +1358,19 @@ function Index() {
             </label>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="text-muted-foreground">Gols</span>
-              <input type="number" min={0} value={form.goals}
+              <input type="number" onFocus={(e) => e.target.select()} min={0} value={form.goals}
                 onChange={(e) => setForm({ ...form, goals: Number(e.target.value) })}
                 className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="text-muted-foreground">Assistências</span>
-              <input type="number" min={0} value={form.assists}
+              <input type="number" onFocus={(e) => e.target.select()} min={0} value={form.assists}
                 onChange={(e) => setForm({ ...form, assists: Number(e.target.value) })}
                 className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
             <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
               <span className="text-muted-foreground">Duração (minutos)</span>
-              <input type="number" min={1} value={form.duration_minutes}
+              <input type="number" onFocus={(e) => e.target.select()} min={1} value={form.duration_minutes}
                 onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })}
                 className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
@@ -1390,13 +1390,13 @@ function Index() {
                   <span className="inline-flex items-center gap-1 text-primary">
                     <Trophy className="h-3.5 w-3.5" /> Meu time
                   </span>
-                  <input type="number" min={0} placeholder="Ex: 4" value={form.my_team_score}
+                  <input type="number" onFocus={(e) => e.target.select()} min={0} placeholder="Ex: 4" value={form.my_team_score}
                     onChange={(e) => setForm({ ...form, my_team_score: e.target.value })}
                     className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
                 </label>
                 <label className="flex flex-col gap-1.5 text-sm">
                   <span className="text-muted-foreground">Adversário</span>
-                  <input type="number" min={0} placeholder="Ex: 2" value={form.opponent_score}
+                  <input type="number" onFocus={(e) => e.target.select()} min={0} placeholder="Ex: 2" value={form.opponent_score}
                     onChange={(e) => setForm({ ...form, opponent_score: e.target.value })}
                     className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
                 </label>
@@ -2120,12 +2120,12 @@ function MatchRow({
           {editing && (
             <div className="mt-1.5 flex items-center gap-1.5 text-xs">
               <span className="text-primary">Meu time</span>
-              <input type="number" min={0} value={myScore}
+              <input type="number" onFocus={(e) => e.target.select()} min={0} value={myScore}
                 onChange={(e) => setMyScore(e.target.value)}
                 placeholder="—"
                 className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
               <span className="text-muted-foreground">x</span>
-              <input type="number" min={0} value={oppScore}
+              <input type="number" onFocus={(e) => e.target.select()} min={0} value={oppScore}
                 onChange={(e) => setOppScore(e.target.value)}
                 placeholder="—"
                 className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
@@ -2150,7 +2150,7 @@ function MatchRow({
         <span className="inline-flex items-center gap-1 text-primary">
           <Target className="h-4 w-4" aria-label="Gols" />
           {editing ? (
-            <input type="number" min={0} value={goals} onChange={(e) => setGoals(Number(e.target.value))}
+            <input type="number" onFocus={(e) => e.target.select()} min={0} value={goals} onChange={(e) => setGoals(Number(e.target.value))}
               className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
           ) : (
             <span className="w-6 text-center font-medium tabular-nums">{match.goals}</span>
@@ -2159,7 +2159,7 @@ function MatchRow({
         <span className="inline-flex items-center gap-1 text-accent">
           <Handshake className="h-4 w-4" aria-label="Assistências" />
           {editing ? (
-            <input type="number" min={0} value={assists} onChange={(e) => setAssists(Number(e.target.value))}
+            <input type="number" onFocus={(e) => e.target.select()} min={0} value={assists} onChange={(e) => setAssists(Number(e.target.value))}
               className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
           ) : (
             <span className="w-6 text-center font-medium tabular-nums">{match.assists}</span>
@@ -2219,14 +2219,14 @@ function ProfileDialog({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="text-muted-foreground">Altura (cm)</span>
-            <input type="number" min={50} max={250} value={height}
+            <input type="number" onFocus={(e) => e.target.select()} min={50} max={250} value={height}
               onChange={(e) => setHeight(e.target.value)}
               placeholder="175"
               className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="text-muted-foreground">Peso (kg)</span>
-            <input type="number" min={20} max={300} step="0.1" value={weight}
+            <input type="number" onFocus={(e) => e.target.select()} min={20} max={300} step="0.1" value={weight}
               onChange={(e) => setWeight(e.target.value)}
               placeholder="78.5"
               className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
