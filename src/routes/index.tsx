@@ -2172,6 +2172,12 @@ function MatchRow({
           </>
         ) : (
           <>
+            {match.notes && (
+              <button onClick={() => setNotesOpen(true)} aria-label="Ver anotação" title="Ver anotação"
+                className="rounded-md p-1.5 text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary">
+                <StickyNote className="h-4 w-4" />
+              </button>
+            )}
             <button onClick={() => setEditing(true)} aria-label="Editar"
               className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
               <Pencil className="h-4 w-4" />
@@ -2183,9 +2189,21 @@ function MatchRow({
           </>
         )}
       </div>
+      <Dialog open={notesOpen} onOpenChange={setNotesOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <StickyNote className="h-4 w-4 text-primary" />
+              Anotação · {formatDate(match.date)}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{match.notes}</p>
+        </DialogContent>
+      </Dialog>
     </li>
   );
 }
+
 
 function ProfileDialog({
   open, onOpenChange, profile, onSave,
