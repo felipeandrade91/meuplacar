@@ -4,7 +4,7 @@ import {
   Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X, Film,
   Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User, Ruler, Info,
 } from "lucide-react";
-import { Search, Rows3, Sparkles } from "lucide-react";
+import { Search, Rows3, Sparkles, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -548,7 +548,13 @@ function Index() {
     const last5 = withScore.slice(-5);
     const last5TeamGoals = last5.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
     const last5MyGoals = last5.reduce((s, m) => s + m.goals, 0);
+    // Impacto decisivo: vitórias em que sua participação (G+A) foi >= margem do placar
+    const wins = withScore.filter((m) => matchResult(m) === "W");
+    const decisiveWins = wins.filter(
+      (m) => m.goals + m.assists >= Math.abs((m.my_team_score ?? 0) - (m.opponent_score ?? 0)),
+    ).length;
     return {
+
       games,
       teamGoals,
       oppGoals,
@@ -563,8 +569,11 @@ function Index() {
       winsWhenIScored,
       winRateWhenIScored: iScored.length ? (winsWhenIScored / iScored.length) * 100 : 0,
       totalWins,
+      decisiveWins,
+      decisivePct: totalWins ? (decisiveWins / totalWins) * 100 : 0,
       recent: {
         games: last5.length,
+
         myGoals: last5MyGoals,
         teamGoals: last5TeamGoals,
         pct: last5TeamGoals > 0 ? (last5MyGoals / last5TeamGoals) * 100 : 0,
@@ -652,6 +661,7 @@ function Index() {
       duration_minutes: Math.max(1, Number(form.duration_minutes) || 60),
       my_team_score: hasMy ? Math.max(0, Math.floor(Number(myScoreRaw))) : null,
       opponent_score: hasOpp ? Math.max(0, Math.floor(Number(oppScoreRaw))) : null,
+      notes: form.notes.trim() || null,
       user_id: uid,
     };
     const { data, error } = await supabase.from("matches").insert(payload).select().single();
@@ -662,8 +672,9 @@ function Index() {
         duration_minutes: (data as { duration_minutes?: number }).duration_minutes ?? 60,
         my_team_score: (data as { my_team_score?: number | null }).my_team_score ?? null,
         opponent_score: (data as { opponent_score?: number | null }).opponent_score ?? null,
+        notes: (data as { notes?: string | null }).notes ?? null,
       }, ...prev]);
-      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0, duration_minutes: 60, my_team_score: "", opponent_score: "" });
+      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0, duration_minutes: 60, my_team_score: "", opponent_score: "", notes: "" });
       toast.success("Jogo registrado");
     } else if (error) {
       toast.error("Não foi possível salvar", { description: error.message });
@@ -684,6 +695,7 @@ function Index() {
     assists: number,
     myScore: number | null,
     oppScore: number | null,
+    notes: string | null,
   ) {
     const safeG = Math.max(0, Math.floor(goals) || 0);
     const safeA = Math.max(0, Math.floor(assists) || 0);
@@ -691,7 +703,7 @@ function Index() {
     const safeOpp = oppScore == null ? null : Math.max(0, Math.floor(oppScore));
     const prev = matches;
     setMatches((cur) => cur.map((m) => (m.id === id
-      ? { ...m, goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp }
+      ? { ...m, goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp, notes }
       : m)));
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session?.user.id) {
@@ -701,7 +713,7 @@ function Index() {
       return false;
     }
     const { error } = await supabase.from("matches").update({
-      goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp,
+      goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp, notes,
     }).eq("id", id);
     if (error) { setMatches(prev); toast.error("Erro ao salvar"); return false; }
     toast.success("Jogo atualizado");
@@ -745,14 +757,14 @@ function Index() {
   }
 
   function exportCsv() {
-    const header = ["data", "tipo", "local", "gols", "assistencias", "duracao_min", "meu_time", "adversario", "placar", "resultado"];
+    const header = ["data", "tipo", "local", "gols", "assistencias", "duracao_min", "meu_time", "adversario", "placar", "resultado", "anotacoes"];
     const rows = sorted.map((m) => {
       const mine = m.my_team_score;
       const opp = m.opponent_score;
       const hasScore = mine !== null && mine !== undefined && opp !== null && opp !== undefined;
       const placar = hasScore ? `${mine}-${opp}` : "";
       const resultado = hasScore ? (mine! > opp! ? "V" : mine! < opp! ? "D" : "E") : "";
-      return [m.date, m.type, m.location ?? "", m.goals, m.assists, m.duration_minutes, mine ?? "", opp ?? "", placar, resultado];
+      return [m.date, m.type, m.location ?? "", m.goals, m.assists, m.duration_minutes, mine ?? "", opp ?? "", placar, resultado, m.notes ?? ""];
     });
     const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -1084,6 +1096,23 @@ function Index() {
                           }
                         />
                       </div>
+                      <div className="mb-3">
+                        <StatCard
+                          label="Impacto decisivo"
+                          value={
+                            teamStats.totalWins > 0
+                              ? `${teamStats.decisivePct.toFixed(0)}%`
+                              : "—"
+                          }
+                          accent
+                          sub={
+                            teamStats.totalWins > 0
+                              ? `${teamStats.decisiveWins} de ${teamStats.totalWins} vitórias em que seus gols + assistências foram iguais ou maiores que a margem do placar`
+                              : "Sem vitórias registradas"
+                          }
+                        />
+                      </div>
+
                       <div className="mb-4 grid grid-cols-2 gap-3">
                         <StatCard
                           label="Gols pró / jogo"
@@ -1344,6 +1373,13 @@ function Index() {
               <input type="number" min={1} value={form.duration_minutes}
                 onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })}
                 className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
+              <span className="text-muted-foreground">Anotações (opcional)</span>
+              <textarea rows={2} placeholder="Ex: golaço de fora da área, jogo pesado, tornozelo dolorido…"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                className="resize-y rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
             <div className="sm:col-span-2 rounded-lg border-2 border-dashed border-border bg-background/30 p-3">
               <p className="mb-2 text-xs text-muted-foreground">
@@ -2001,7 +2037,7 @@ function MatchRow({
   match: Match;
   onSave: (
     id: string, goals: number, assists: number,
-    myScore: number | null, oppScore: number | null,
+    myScore: number | null, oppScore: number | null, notes: string | null,
   ) => Promise<boolean>;
   onRequestRemove: () => void;
   compact?: boolean;
@@ -2011,6 +2047,7 @@ function MatchRow({
   const [assists, setAssists] = useState(match.assists);
   const [myScore, setMyScore] = useState<string>(match.my_team_score?.toString() ?? "");
   const [oppScore, setOppScore] = useState<string>(match.opponent_score?.toString() ?? "");
+  const [notes, setNotes] = useState<string>(match.notes ?? "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -2018,8 +2055,9 @@ function MatchRow({
       setGoals(match.goals); setAssists(match.assists);
       setMyScore(match.my_team_score?.toString() ?? "");
       setOppScore(match.opponent_score?.toString() ?? "");
+      setNotes(match.notes ?? "");
     }
-  }, [match.goals, match.assists, match.my_team_score, match.opponent_score, editing]);
+  }, [match.goals, match.assists, match.my_team_score, match.opponent_score, match.notes, editing]);
 
   async function handleSave() {
     setSaving(true);
@@ -2034,6 +2072,7 @@ function MatchRow({
       match.id, goals, assists,
       hasMy ? Number(myScore) : null,
       hasOpp ? Number(oppScore) : null,
+      notes.trim() || null,
     );
     setSaving(false);
     if (ok) setEditing(false);
@@ -2043,6 +2082,7 @@ function MatchRow({
     setGoals(match.goals); setAssists(match.assists);
     setMyScore(match.my_team_score?.toString() ?? "");
     setOppScore(match.opponent_score?.toString() ?? "");
+    setNotes(match.notes ?? "");
     setEditing(false);
   }
 
@@ -2091,6 +2131,18 @@ function MatchRow({
                 className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
               <span className="text-muted-foreground">Adversário</span>
             </div>
+          )}
+          {editing ? (
+            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+              placeholder="Anotações do jogo…"
+              className="mt-1.5 w-full resize-y rounded-md border-2 border-border bg-input/40 px-2 py-1 text-xs text-foreground outline-none focus:border-primary" />
+          ) : (
+            match.notes && !compact && (
+              <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+                <StickyNote className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
+                <span className="italic">{match.notes}</span>
+              </p>
+            )
           )}
         </div>
       </div>
