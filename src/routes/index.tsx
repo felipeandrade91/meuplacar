@@ -757,14 +757,14 @@ function Index() {
   }
 
   function exportCsv() {
-    const header = ["data", "tipo", "local", "gols", "assistencias", "duracao_min", "meu_time", "adversario", "placar", "resultado"];
+    const header = ["data", "tipo", "local", "gols", "assistencias", "duracao_min", "meu_time", "adversario", "placar", "resultado", "anotacoes"];
     const rows = sorted.map((m) => {
       const mine = m.my_team_score;
       const opp = m.opponent_score;
       const hasScore = mine !== null && mine !== undefined && opp !== null && opp !== undefined;
       const placar = hasScore ? `${mine}-${opp}` : "";
       const resultado = hasScore ? (mine! > opp! ? "V" : mine! < opp! ? "D" : "E") : "";
-      return [m.date, m.type, m.location ?? "", m.goals, m.assists, m.duration_minutes, mine ?? "", opp ?? "", placar, resultado];
+      return [m.date, m.type, m.location ?? "", m.goals, m.assists, m.duration_minutes, mine ?? "", opp ?? "", placar, resultado, m.notes ?? ""];
     });
     const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
