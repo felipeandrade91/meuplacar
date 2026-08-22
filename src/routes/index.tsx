@@ -548,7 +548,13 @@ function Index() {
     const last5 = withScore.slice(-5);
     const last5TeamGoals = last5.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
     const last5MyGoals = last5.reduce((s, m) => s + m.goals, 0);
+    // Impacto decisivo: vitórias em que sua participação (G+A) foi >= margem do placar
+    const wins = withScore.filter((m) => matchResult(m) === "W");
+    const decisiveWins = wins.filter(
+      (m) => m.goals + m.assists >= Math.abs((m.my_team_score ?? 0) - (m.opponent_score ?? 0)),
+    ).length;
     return {
+
       games,
       teamGoals,
       oppGoals,
