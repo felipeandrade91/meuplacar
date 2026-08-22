@@ -569,7 +569,9 @@ function Index() {
       winsWhenIScored,
       winRateWhenIScored: iScored.length ? (winsWhenIScored / iScored.length) * 100 : 0,
       totalWins,
-      recent: {
+      decisiveWins,
+      decisivePct: totalWins ? (decisiveWins / totalWins) * 100 : 0,
+
         games: last5.length,
         myGoals: last5MyGoals,
         teamGoals: last5TeamGoals,
