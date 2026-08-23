@@ -2050,6 +2050,7 @@ function MatchRow({
   const [oppScore, setOppScore] = useState<string>(match.opponent_score?.toString() ?? "");
   const [notes, setNotes] = useState<string>(match.notes ?? "");
   const [saving, setSaving] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
 
   useEffect(() => {
     if (!editing) {
