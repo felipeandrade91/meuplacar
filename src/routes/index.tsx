@@ -4,7 +4,7 @@ import {
   Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X, Film,
   Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User, Ruler, Info,
 } from "lucide-react";
-import { Search, Rows3, Sparkles, StickyNote } from "lucide-react";
+import { Search, Rows3, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -27,7 +27,6 @@ interface Match {
   duration_minutes: number;
   my_team_score?: number | null;
   opponent_score?: number | null;
-  notes?: string | null;
 }
 
 interface Profile {
@@ -160,7 +159,6 @@ function Index() {
     duration_minutes: 60,
     my_team_score: "" as string,
     opponent_score: "" as string,
-    notes: "" as string,
   });
 
   useEffect(() => {
@@ -191,7 +189,6 @@ function Index() {
           duration_minutes: (m as { duration_minutes?: number }).duration_minutes ?? 60,
           my_team_score: (m as { my_team_score?: number | null }).my_team_score ?? null,
           opponent_score: (m as { opponent_score?: number | null }).opponent_score ?? null,
-          notes: (m as { notes?: string | null }).notes ?? null,
         })));
       }
       if (!profileRes.error && profileRes.data) {
@@ -662,7 +659,6 @@ function Index() {
       duration_minutes: Math.max(1, Number(form.duration_minutes) || 60),
       my_team_score: hasMy ? Math.max(0, Math.floor(Number(myScoreRaw))) : null,
       opponent_score: hasOpp ? Math.max(0, Math.floor(Number(oppScoreRaw))) : null,
-      notes: form.notes.trim() || null,
       user_id: uid,
     };
     const { data, error } = await supabase.from("matches").insert(payload).select().single();
@@ -673,9 +669,8 @@ function Index() {
         duration_minutes: (data as { duration_minutes?: number }).duration_minutes ?? 60,
         my_team_score: (data as { my_team_score?: number | null }).my_team_score ?? null,
         opponent_score: (data as { opponent_score?: number | null }).opponent_score ?? null,
-        notes: (data as { notes?: string | null }).notes ?? null,
       }, ...prev]);
-      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0, duration_minutes: 60, my_team_score: "", opponent_score: "", notes: "" });
+      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0, duration_minutes: 60, my_team_score: "", opponent_score: "" });
       toast.success("Jogo registrado");
     } else if (error) {
       toast.error("Não foi possível salvar", { description: error.message });
@@ -696,7 +691,6 @@ function Index() {
     assists: number,
     myScore: number | null,
     oppScore: number | null,
-    notes: string | null,
   ) {
     const safeG = Math.max(0, Math.floor(goals) || 0);
     const safeA = Math.max(0, Math.floor(assists) || 0);
@@ -704,7 +698,7 @@ function Index() {
     const safeOpp = oppScore == null ? null : Math.max(0, Math.floor(oppScore));
     const prev = matches;
     setMatches((cur) => cur.map((m) => (m.id === id
-      ? { ...m, goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp, notes }
+      ? { ...m, goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp }
       : m)));
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session?.user.id) {
@@ -714,7 +708,7 @@ function Index() {
       return false;
     }
     const { error } = await supabase.from("matches").update({
-      goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp, notes,
+      goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp,
     }).eq("id", id);
     if (error) { setMatches(prev); toast.error("Erro ao salvar"); return false; }
     toast.success("Jogo atualizado");
@@ -758,14 +752,14 @@ function Index() {
   }
 
   function exportCsv() {
-    const header = ["data", "tipo", "local", "gols", "assistencias", "duracao_min", "meu_time", "adversario", "placar", "resultado", "anotacoes"];
+    const header = ["data", "tipo", "local", "gols", "assistencias", "duracao_min", "meu_time", "adversario", "placar", "resultado"];
     const rows = sorted.map((m) => {
       const mine = m.my_team_score;
       const opp = m.opponent_score;
       const hasScore = mine !== null && mine !== undefined && opp !== null && opp !== undefined;
       const placar = hasScore ? `${mine}-${opp}` : "";
       const resultado = hasScore ? (mine! > opp! ? "V" : mine! < opp! ? "D" : "E") : "";
-      return [m.date, m.type, m.location ?? "", m.goals, m.assists, m.duration_minutes, mine ?? "", opp ?? "", placar, resultado, m.notes ?? ""];
+      return [m.date, m.type, m.location ?? "", m.goals, m.assists, m.duration_minutes, mine ?? "", opp ?? "", placar, resultado];
     });
     const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -1374,13 +1368,6 @@ function Index() {
               <input type="number" onFocus={(e) => e.target.select()} min={1} value={form.duration_minutes}
                 onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })}
                 className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
-            </label>
-            <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
-              <span className="text-muted-foreground">Anotações (opcional)</span>
-              <textarea rows={2} placeholder="Ex: golaço de fora da área, jogo pesado, tornozelo dolorido…"
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                className="resize-y rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
             <div className="sm:col-span-2 rounded-lg border-2 border-dashed border-border bg-background/30 p-3">
               <p className="mb-2 text-xs text-muted-foreground">
@@ -2033,33 +2020,29 @@ function BestMatchCard({
 }
 
 function MatchRow({
-  match, onSave, onRequestRemove, compact,
+  match, onSave, onRequestRemove,
 }: {
   match: Match;
   onSave: (
     id: string, goals: number, assists: number,
-    myScore: number | null, oppScore: number | null, notes: string | null,
+    myScore: number | null, oppScore: number | null,
   ) => Promise<boolean>;
   onRequestRemove: () => void;
-  compact?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [goals, setGoals] = useState(match.goals);
   const [assists, setAssists] = useState(match.assists);
   const [myScore, setMyScore] = useState<string>(match.my_team_score?.toString() ?? "");
   const [oppScore, setOppScore] = useState<string>(match.opponent_score?.toString() ?? "");
-  const [notes, setNotes] = useState<string>(match.notes ?? "");
   const [saving, setSaving] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(false);
 
   useEffect(() => {
     if (!editing) {
       setGoals(match.goals); setAssists(match.assists);
       setMyScore(match.my_team_score?.toString() ?? "");
       setOppScore(match.opponent_score?.toString() ?? "");
-      setNotes(match.notes ?? "");
     }
-  }, [match.goals, match.assists, match.my_team_score, match.opponent_score, match.notes, editing]);
+  }, [match.goals, match.assists, match.my_team_score, match.opponent_score, editing]);
 
   async function handleSave() {
     setSaving(true);
@@ -2074,7 +2057,6 @@ function MatchRow({
       match.id, goals, assists,
       hasMy ? Number(myScore) : null,
       hasOpp ? Number(oppScore) : null,
-      notes.trim() || null,
     );
     setSaving(false);
     if (ok) setEditing(false);
@@ -2084,7 +2066,6 @@ function MatchRow({
     setGoals(match.goals); setAssists(match.assists);
     setMyScore(match.my_team_score?.toString() ?? "");
     setOppScore(match.opponent_score?.toString() ?? "");
-    setNotes(match.notes ?? "");
     setEditing(false);
   }
 
@@ -2098,110 +2079,80 @@ function MatchRow({
     : null;
 
   return (
-    <li className={`flex items-center justify-between gap-3 rounded-xl border-2 border-border bg-card transition-all hover:border-primary/50 hover:bg-primary/[0.02] ${compact ? "px-3 py-1.5" : "px-4 py-3"}`}>
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {!compact && <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />}
-        <div className="min-w-0">
-          <p className={`truncate font-medium ${compact ? "text-xs" : "text-sm"}`}>
-            {formatDate(match.date)}
-            {!compact && (
-              <>
-                <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
-                  {match.type === "quinta" ? "Futebol semanal" : "Pelada"}
-                </span>
-                <span className="ml-1.5 text-xs text-muted-foreground">· {match.duration_minutes}min</span>
-              </>
-            )}
+    <li className="flex items-center justify-between gap-3 rounded-xl border-2 border-border bg-card px-3 py-2 transition-all hover:border-primary/50 hover:bg-primary/[0.02]">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="text-xs font-medium text-foreground">{formatDate(match.date)}</p>
             {resultBadge && !editing && (
-              <span className={`ml-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${resultBadge.cls}`}>
+              <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${resultBadge.cls}`}>
                 {resultBadge.label} {match.my_team_score}–{match.opponent_score}
               </span>
             )}
-          </p>
-          {match.location && !compact && <p className="truncate text-xs text-muted-foreground">{match.location}</p>}
+          </div>
+          {match.location && (
+            <p className="truncate text-[11px] leading-tight text-muted-foreground">{match.location}</p>
+          )}
           {editing && (
-            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+            <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
               <span className="text-primary">Meu time</span>
               <input type="number" onFocus={(e) => e.target.select()} min={0} value={myScore}
                 onChange={(e) => setMyScore(e.target.value)}
                 placeholder="—"
-                className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+                className="w-11 rounded-md border-2 border-border bg-input/40 px-1 py-0.5 text-center text-foreground outline-none focus:border-primary" />
               <span className="text-muted-foreground">x</span>
               <input type="number" onFocus={(e) => e.target.select()} min={0} value={oppScore}
                 onChange={(e) => setOppScore(e.target.value)}
                 placeholder="—"
-                className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+                className="w-11 rounded-md border-2 border-border bg-input/40 px-1 py-0.5 text-center text-foreground outline-none focus:border-primary" />
               <span className="text-muted-foreground">Adversário</span>
             </div>
           )}
-          {editing && (
-            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
-              placeholder="Anotações do jogo…"
-              className="mt-1.5 w-full resize-y rounded-md border-2 border-border bg-input/40 px-2 py-1 text-xs text-foreground outline-none focus:border-primary" />
-          )}
-
         </div>
       </div>
       <div className="flex items-center gap-2 text-sm">
         <span className="inline-flex items-center gap-1 text-primary">
-          <Target className="h-4 w-4" aria-label="Gols" />
+          <Target className="h-3.5 w-3.5" aria-label="Gols" />
           {editing ? (
             <input type="number" onFocus={(e) => e.target.select()} min={0} value={goals} onChange={(e) => setGoals(Number(e.target.value))}
-              className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+              className="w-11 rounded-md border-2 border-border bg-input/40 px-1 py-0.5 text-center text-foreground outline-none focus:border-primary" />
           ) : (
-            <span className="w-6 text-center font-medium tabular-nums">{match.goals}</span>
+            <span className="w-5 text-center text-xs font-medium tabular-nums">{match.goals}</span>
           )}
         </span>
         <span className="inline-flex items-center gap-1 text-accent">
-          <Handshake className="h-4 w-4" aria-label="Assistências" />
+          <Handshake className="h-3.5 w-3.5" aria-label="Assistências" />
           {editing ? (
             <input type="number" onFocus={(e) => e.target.select()} min={0} value={assists} onChange={(e) => setAssists(Number(e.target.value))}
-              className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+              className="w-11 rounded-md border-2 border-border bg-input/40 px-1 py-0.5 text-center text-foreground outline-none focus:border-primary" />
           ) : (
-            <span className="w-6 text-center font-medium tabular-nums">{match.assists}</span>
+            <span className="w-5 text-center text-xs font-medium tabular-nums">{match.assists}</span>
           )}
         </span>
         {editing ? (
           <>
             <button onClick={handleSave} disabled={saving} aria-label="Salvar"
-              className="rounded-md p-1.5 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              className="rounded-md p-1 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50">
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
             </button>
             <button onClick={handleCancel} disabled={saving} aria-label="Cancelar"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-              <X className="h-4 w-4" />
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+              <X className="h-3.5 w-3.5" />
             </button>
           </>
         ) : (
           <>
-            {match.notes && (
-              <button onClick={() => setNotesOpen(true)} aria-label="Ver anotação" title="Ver anotação"
-                className="rounded-md p-1.5 text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary">
-                <StickyNote className="h-4 w-4" />
-              </button>
-            )}
             <button onClick={() => setEditing(true)} aria-label="Editar"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-              <Pencil className="h-4 w-4" />
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+              <Pencil className="h-3.5 w-3.5" />
             </button>
             <button onClick={onRequestRemove} aria-label="Remover"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive">
-              <Trash2 className="h-4 w-4" />
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive">
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </>
         )}
       </div>
-      <Dialog open={notesOpen} onOpenChange={setNotesOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <StickyNote className="h-4 w-4 text-primary" />
-              Anotação · {formatDate(match.date)}
-            </DialogTitle>
-          </DialogHeader>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{match.notes}</p>
-        </DialogContent>
-      </Dialog>
     </li>
   );
 }
