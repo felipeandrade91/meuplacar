@@ -2020,33 +2020,29 @@ function BestMatchCard({
 }
 
 function MatchRow({
-  match, onSave, onRequestRemove, compact,
+  match, onSave, onRequestRemove,
 }: {
   match: Match;
   onSave: (
     id: string, goals: number, assists: number,
-    myScore: number | null, oppScore: number | null, notes: string | null,
+    myScore: number | null, oppScore: number | null,
   ) => Promise<boolean>;
   onRequestRemove: () => void;
-  compact?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [goals, setGoals] = useState(match.goals);
   const [assists, setAssists] = useState(match.assists);
   const [myScore, setMyScore] = useState<string>(match.my_team_score?.toString() ?? "");
   const [oppScore, setOppScore] = useState<string>(match.opponent_score?.toString() ?? "");
-  const [notes, setNotes] = useState<string>(match.notes ?? "");
   const [saving, setSaving] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(false);
 
   useEffect(() => {
     if (!editing) {
       setGoals(match.goals); setAssists(match.assists);
       setMyScore(match.my_team_score?.toString() ?? "");
       setOppScore(match.opponent_score?.toString() ?? "");
-      setNotes(match.notes ?? "");
     }
-  }, [match.goals, match.assists, match.my_team_score, match.opponent_score, match.notes, editing]);
+  }, [match.goals, match.assists, match.my_team_score, match.opponent_score, editing]);
 
   async function handleSave() {
     setSaving(true);
@@ -2061,7 +2057,6 @@ function MatchRow({
       match.id, goals, assists,
       hasMy ? Number(myScore) : null,
       hasOpp ? Number(oppScore) : null,
-      notes.trim() || null,
     );
     setSaving(false);
     if (ok) setEditing(false);
@@ -2071,7 +2066,6 @@ function MatchRow({
     setGoals(match.goals); setAssists(match.assists);
     setMyScore(match.my_team_score?.toString() ?? "");
     setOppScore(match.opponent_score?.toString() ?? "");
-    setNotes(match.notes ?? "");
     setEditing(false);
   }
 
@@ -2085,110 +2079,80 @@ function MatchRow({
     : null;
 
   return (
-    <li className={`flex items-center justify-between gap-3 rounded-xl border-2 border-border bg-card transition-all hover:border-primary/50 hover:bg-primary/[0.02] ${compact ? "px-3 py-1.5" : "px-4 py-3"}`}>
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {!compact && <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />}
-        <div className="min-w-0">
-          <p className={`truncate font-medium ${compact ? "text-xs" : "text-sm"}`}>
-            {formatDate(match.date)}
-            {!compact && (
-              <>
-                <span className="ml-2 rounded-md bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
-                  {match.type === "quinta" ? "Futebol semanal" : "Pelada"}
-                </span>
-                <span className="ml-1.5 text-xs text-muted-foreground">· {match.duration_minutes}min</span>
-              </>
-            )}
+    <li className="flex items-center justify-between gap-3 rounded-xl border-2 border-border bg-card px-3 py-2 transition-all hover:border-primary/50 hover:bg-primary/[0.02]">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="text-xs font-medium text-foreground">{formatDate(match.date)}</p>
             {resultBadge && !editing && (
-              <span className={`ml-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${resultBadge.cls}`}>
+              <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${resultBadge.cls}`}>
                 {resultBadge.label} {match.my_team_score}–{match.opponent_score}
               </span>
             )}
-          </p>
-          {match.location && !compact && <p className="truncate text-xs text-muted-foreground">{match.location}</p>}
+          </div>
+          {match.location && (
+            <p className="truncate text-[11px] leading-tight text-muted-foreground">{match.location}</p>
+          )}
           {editing && (
-            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+            <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
               <span className="text-primary">Meu time</span>
               <input type="number" onFocus={(e) => e.target.select()} min={0} value={myScore}
                 onChange={(e) => setMyScore(e.target.value)}
                 placeholder="—"
-                className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+                className="w-11 rounded-md border-2 border-border bg-input/40 px-1 py-0.5 text-center text-foreground outline-none focus:border-primary" />
               <span className="text-muted-foreground">x</span>
               <input type="number" onFocus={(e) => e.target.select()} min={0} value={oppScore}
                 onChange={(e) => setOppScore(e.target.value)}
                 placeholder="—"
-                className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+                className="w-11 rounded-md border-2 border-border bg-input/40 px-1 py-0.5 text-center text-foreground outline-none focus:border-primary" />
               <span className="text-muted-foreground">Adversário</span>
             </div>
           )}
-          {editing && (
-            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
-              placeholder="Anotações do jogo…"
-              className="mt-1.5 w-full resize-y rounded-md border-2 border-border bg-input/40 px-2 py-1 text-xs text-foreground outline-none focus:border-primary" />
-          )}
-
         </div>
       </div>
       <div className="flex items-center gap-2 text-sm">
         <span className="inline-flex items-center gap-1 text-primary">
-          <Target className="h-4 w-4" aria-label="Gols" />
+          <Target className="h-3.5 w-3.5" aria-label="Gols" />
           {editing ? (
             <input type="number" onFocus={(e) => e.target.select()} min={0} value={goals} onChange={(e) => setGoals(Number(e.target.value))}
-              className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+              className="w-11 rounded-md border-2 border-border bg-input/40 px-1 py-0.5 text-center text-foreground outline-none focus:border-primary" />
           ) : (
-            <span className="w-6 text-center font-medium tabular-nums">{match.goals}</span>
+            <span className="w-5 text-center text-xs font-medium tabular-nums">{match.goals}</span>
           )}
         </span>
         <span className="inline-flex items-center gap-1 text-accent">
-          <Handshake className="h-4 w-4" aria-label="Assistências" />
+          <Handshake className="h-3.5 w-3.5" aria-label="Assistências" />
           {editing ? (
             <input type="number" onFocus={(e) => e.target.select()} min={0} value={assists} onChange={(e) => setAssists(Number(e.target.value))}
-              className="w-12 rounded-md border-2 border-border bg-input/40 px-1.5 py-1 text-center text-foreground outline-none focus:border-primary" />
+              className="w-11 rounded-md border-2 border-border bg-input/40 px-1 py-0.5 text-center text-foreground outline-none focus:border-primary" />
           ) : (
-            <span className="w-6 text-center font-medium tabular-nums">{match.assists}</span>
+            <span className="w-5 text-center text-xs font-medium tabular-nums">{match.assists}</span>
           )}
         </span>
         {editing ? (
           <>
             <button onClick={handleSave} disabled={saving} aria-label="Salvar"
-              className="rounded-md p-1.5 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              className="rounded-md p-1 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50">
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
             </button>
             <button onClick={handleCancel} disabled={saving} aria-label="Cancelar"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-              <X className="h-4 w-4" />
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+              <X className="h-3.5 w-3.5" />
             </button>
           </>
         ) : (
           <>
-            {match.notes && (
-              <button onClick={() => setNotesOpen(true)} aria-label="Ver anotação" title="Ver anotação"
-                className="rounded-md p-1.5 text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary">
-                <StickyNote className="h-4 w-4" />
-              </button>
-            )}
             <button onClick={() => setEditing(true)} aria-label="Editar"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-              <Pencil className="h-4 w-4" />
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+              <Pencil className="h-3.5 w-3.5" />
             </button>
             <button onClick={onRequestRemove} aria-label="Remover"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive">
-              <Trash2 className="h-4 w-4" />
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive">
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </>
         )}
       </div>
-      <Dialog open={notesOpen} onOpenChange={setNotesOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <StickyNote className="h-4 w-4 text-primary" />
-              Anotação · {formatDate(match.date)}
-            </DialogTitle>
-          </DialogHeader>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{match.notes}</p>
-        </DialogContent>
-      </Dialog>
     </li>
   );
 }
