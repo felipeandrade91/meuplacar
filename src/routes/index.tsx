@@ -691,7 +691,6 @@ function Index() {
     assists: number,
     myScore: number | null,
     oppScore: number | null,
-    notes: string | null,
   ) {
     const safeG = Math.max(0, Math.floor(goals) || 0);
     const safeA = Math.max(0, Math.floor(assists) || 0);
@@ -699,7 +698,7 @@ function Index() {
     const safeOpp = oppScore == null ? null : Math.max(0, Math.floor(oppScore));
     const prev = matches;
     setMatches((cur) => cur.map((m) => (m.id === id
-      ? { ...m, goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp, notes }
+      ? { ...m, goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp }
       : m)));
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session?.user.id) {
@@ -709,7 +708,7 @@ function Index() {
       return false;
     }
     const { error } = await supabase.from("matches").update({
-      goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp, notes,
+      goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp,
     }).eq("id", id);
     if (error) { setMatches(prev); toast.error("Erro ao salvar"); return false; }
     toast.success("Jogo atualizado");
