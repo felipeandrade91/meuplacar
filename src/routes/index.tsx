@@ -27,7 +27,6 @@ interface Match {
   duration_minutes: number;
   my_team_score?: number | null;
   opponent_score?: number | null;
-  notes?: string | null;
 }
 
 interface Profile {
