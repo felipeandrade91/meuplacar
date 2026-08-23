@@ -4,7 +4,7 @@ import {
   Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X, Film,
   Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User, Ruler, Info,
 } from "lucide-react";
-import { Search, Rows3, Sparkles, StickyNote } from "lucide-react";
+import { Search, Rows3, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
