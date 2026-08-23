@@ -669,9 +669,8 @@ function Index() {
         duration_minutes: (data as { duration_minutes?: number }).duration_minutes ?? 60,
         my_team_score: (data as { my_team_score?: number | null }).my_team_score ?? null,
         opponent_score: (data as { opponent_score?: number | null }).opponent_score ?? null,
-        notes: (data as { notes?: string | null }).notes ?? null,
       }, ...prev]);
-      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0, duration_minutes: 60, my_team_score: "", opponent_score: "", notes: "" });
+      setForm({ date: todayStr, type: "quinta", location: QUINTA_LOCATION, goals: 0, assists: 0, duration_minutes: 60, my_team_score: "", opponent_score: "" });
       toast.success("Jogo registrado");
     } else if (error) {
       toast.error("Não foi possível salvar", { description: error.message });
