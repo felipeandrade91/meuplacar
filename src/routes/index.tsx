@@ -1369,13 +1369,6 @@ function Index() {
                 onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })}
                 className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
-              <span className="text-muted-foreground">Anotações (opcional)</span>
-              <textarea rows={2} placeholder="Ex: golaço de fora da área, jogo pesado, tornozelo dolorido…"
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                className="resize-y rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
-            </label>
             <div className="sm:col-span-2 rounded-lg border-2 border-dashed border-border bg-background/30 p-3">
               <p className="mb-2 text-xs text-muted-foreground">
                 Placar do jogo (opcional, a partir de jun/2026)
