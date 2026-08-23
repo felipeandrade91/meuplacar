@@ -659,7 +659,6 @@ function Index() {
       duration_minutes: Math.max(1, Number(form.duration_minutes) || 60),
       my_team_score: hasMy ? Math.max(0, Math.floor(Number(myScoreRaw))) : null,
       opponent_score: hasOpp ? Math.max(0, Math.floor(Number(oppScoreRaw))) : null,
-      notes: form.notes.trim() || null,
       user_id: uid,
     };
     const { data, error } = await supabase.from("matches").insert(payload).select().single();
