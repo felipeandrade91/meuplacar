@@ -144,7 +144,6 @@ function Index() {
   const [samplesOpen, setSamplesOpen] = useState<null | "calories" | "distance">(null);
   const [historyQuery, setHistoryQuery] = useState("");
   const [historyFilter, setHistoryFilter] = useState<"all" | "quinta" | "pelada" | "W" | "D" | "L">("all");
-  const [compactHistory, setCompactHistory] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [teamPeriod, setTeamPeriod] = useState<PeriodKey>("all");
   const [monthSummaryKey, setMonthSummaryKey] = useState<string | null>(null);
