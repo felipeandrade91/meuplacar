@@ -4,7 +4,7 @@ import {
   Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X, Film,
   Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User, Ruler, Info,
 } from "lucide-react";
-import { Search, Rows3, Sparkles } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -144,7 +144,6 @@ function Index() {
   const [samplesOpen, setSamplesOpen] = useState<null | "calories" | "distance">(null);
   const [historyQuery, setHistoryQuery] = useState("");
   const [historyFilter, setHistoryFilter] = useState<"all" | "quinta" | "pelada" | "W" | "D" | "L">("all");
-  const [compactHistory, setCompactHistory] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [teamPeriod, setTeamPeriod] = useState<PeriodKey>("all");
   const [monthSummaryKey, setMonthSummaryKey] = useState<string | null>(null);
@@ -1426,13 +1425,7 @@ function Index() {
                 </select>
               )}
               {sorted.length > 0 && (
-                <button onClick={() => setCompactHistory((v) => !v)}
-                  className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                  title={compactHistory ? "Modo detalhado" : "Modo compacto"}>
-                  <Rows3 className="h-3.5 w-3.5" /> {compactHistory ? "Detalhado" : "Compacto"}
-                </button>
-              )}
-              {sorted.length > 0 && (
+
                 <button onClick={exportCsv}
                   className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
                   <Download className="h-3.5 w-3.5" /> Exportar CSV
@@ -1476,7 +1469,6 @@ function Index() {
             <ul className="space-y-2">
               {historySorted.map((m) => (
                 <MatchRow key={m.id} match={m}
-                  compact={compactHistory}
                   onSave={saveMatchStats}
                   onRequestRemove={() => setConfirmDelete(m)} />
               ))}
