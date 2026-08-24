@@ -1476,7 +1476,6 @@ function Index() {
             <ul className="space-y-2">
               {historySorted.map((m) => (
                 <MatchRow key={m.id} match={m}
-                  compact={compactHistory}
                   onSave={saveMatchStats}
                   onRequestRemove={() => setConfirmDelete(m)} />
               ))}
