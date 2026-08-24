@@ -1426,13 +1426,7 @@ function Index() {
                 </select>
               )}
               {sorted.length > 0 && (
-                <button onClick={() => setCompactHistory((v) => !v)}
-                  className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                  title={compactHistory ? "Modo detalhado" : "Modo compacto"}>
-                  <Rows3 className="h-3.5 w-3.5" /> {compactHistory ? "Detalhado" : "Compacto"}
-                </button>
-              )}
-              {sorted.length > 0 && (
+
                 <button onClick={exportCsv}
                   className="inline-flex items-center gap-1.5 rounded-md border-2 border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
                   <Download className="h-3.5 w-3.5" /> Exportar CSV
