@@ -1177,11 +1177,28 @@ function Index() {
                         <div className="mt-6 border-t-2 border-border pt-5">
                           <h4 className="mb-1 text-sm font-semibold">Quão decisivo você foi</h4>
                           <p className="mb-4 text-xs text-muted-foreground">
-                            Índice decisivo de uma partida = quanto dos gols do time você
-                            participou (gols + assistências ÷ gols do time). Considera os jogos
-                            com placar em que o time marcou.
+                            Índice decisivo de uma partida = suas participações (gols +
+                            assistências, limitadas ao total marcado) ÷ gols do time. Considera os
+                            jogos com placar em que o time marcou.
                           </p>
+                          <div className="mb-3">
+                            <StatCard
+                              label="Impacto decisivo"
+                              value={
+                                teamStats.totalWins > 0
+                                  ? `${teamStats.decisivePct.toFixed(0)}%`
+                                  : "—"
+                              }
+                              accent
+                              sub={
+                                teamStats.totalWins > 0
+                                  ? `${teamStats.decisiveWins} de ${teamStats.totalWins} vitórias em que seus gols + assistências foram iguais ou maiores que a margem do placar`
+                                  : "Sem vitórias registradas"
+                              }
+                            />
+                          </div>
                           <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+
                             <StatCard
                               label="Índice médio"
                               value={`${decisiveStats.avgAll.toFixed(0)}%`}
