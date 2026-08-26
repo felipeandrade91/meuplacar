@@ -1782,14 +1782,16 @@ function ResultSplitChart({
         const s = d[r.key];
         return (
           <div key={r.key}>
-            <div className="mb-1 flex items-center justify-between text-xs">
-              <span className="font-medium text-foreground">
-                {r.label} <span className="text-muted-foreground">({s.games} jogos)</span>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="text-base font-bold text-foreground">
+                {r.label}{" "}
+                <span className="text-xs font-medium text-muted-foreground">({s.games} jogos)</span>
               </span>
-              <span className="tabular-nums text-muted-foreground">
+              <span className="text-sm font-semibold tabular-nums text-foreground">
                 {s.games ? `${s.gaPerGame.toFixed(2)} G+A / jogo` : "—"}
               </span>
             </div>
+
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <div className="h-3.5 flex-1 overflow-hidden rounded-sm bg-muted/40">
