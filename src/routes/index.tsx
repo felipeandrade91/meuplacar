@@ -2156,8 +2156,9 @@ function DecisiveMatchCard({
       <p className={`mt-1 text-2xl font-bold tabular-nums ${accent ? "text-primary" : "text-foreground"}`}>
         {item.index.toFixed(0)}%
         <span className="ml-2 text-sm font-normal text-muted-foreground">
-          ({item.involved}/{item.teamGoals} gols)
+          ({item.involved} de {item.teamGoals} gols do time)
         </span>
+
       </p>
       <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
         <Calendar className={`h-3.5 w-3.5 ${accent ? "text-primary" : "text-muted-foreground"}`} />
