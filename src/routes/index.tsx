@@ -2145,7 +2145,7 @@ function DecisiveMatchCard({
   label: string;
   item: {
     m: Match; index: number; involved: number; teamGoals: number;
-    margin: number; result: MatchResult; decided: boolean;
+    margin: number; result: MatchResult | null; decided: boolean;
   };
   accent?: boolean;
 }) {
