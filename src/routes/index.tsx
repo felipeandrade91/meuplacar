@@ -1270,9 +1270,10 @@ function Index() {
                                 <span className="w-10 text-right text-xs font-semibold text-primary tabular-nums">
                                   {x.index.toFixed(0)}%
                                 </span>
-                                <span className="w-24 text-right text-[11px] text-muted-foreground tabular-nums">
-                                  {x.involved}/{x.teamGoals} gols
+                                <span className="w-28 text-right text-[11px] text-muted-foreground tabular-nums">
+                                  {x.involved} de {x.teamGoals} gols
                                 </span>
+
                               </div>
                             ))}
                           </div>
