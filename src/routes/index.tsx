@@ -1187,6 +1187,95 @@ function Index() {
                           <ScatterChart data={scatterData} />
                         </div>
                       )}
+                      {decisiveStats && (
+                        <div className="mt-6 border-t-2 border-border pt-5">
+                          <h4 className="mb-1 text-sm font-semibold">Quão decisivo você foi</h4>
+                          <p className="mb-4 text-xs text-muted-foreground">
+                            Índice decisivo de uma partida = quanto dos gols do time você
+                            participou (gols + assistências ÷ gols do time). Considera os jogos
+                            com placar em que o time marcou.
+                          </p>
+                          <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <StatCard
+                              label="Índice médio"
+                              value={`${decisiveStats.avgAll.toFixed(0)}%`}
+                              accent
+                              small
+                              sub={`média em ${decisiveStats.games} jogos`}
+                            />
+                            <StatCard
+                              label="Média em vitórias"
+                              value={
+                                decisiveStats.avgWins != null
+                                  ? `${decisiveStats.avgWins.toFixed(0)}%`
+                                  : "—"
+                              }
+                              highlight
+                              small
+                              sub="quando o time venceu"
+                            />
+                            <StatCard
+                              label="Média em derrotas"
+                              value={
+                                decisiveStats.avgLosses != null
+                                  ? `${decisiveStats.avgLosses.toFixed(0)}%`
+                                  : "—"
+                              }
+                              small
+                              sub="quando o time perdeu"
+                            />
+                            <StatCard
+                              label="Jogos que você decidiu"
+                              value={decisiveStats.decidedGames}
+                              small
+                              accent
+                              sub="vitórias com G+A ≥ margem"
+                            />
+                          </div>
+                          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <DecisiveMatchCard
+                              label="Partida mais decisiva"
+                              item={decisiveStats.best}
+                              accent
+                            />
+                            <DecisiveMatchCard
+                              label="Partida menos decisiva"
+                              item={decisiveStats.worst}
+                            />
+                          </div>
+                          <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+                            Top 3 partidas mais decisivas
+                          </p>
+                          <div className="space-y-2">
+                            {decisiveStats.top.map((x, i) => (
+                              <div
+                                key={x.m.id}
+                                className="flex items-center gap-3 rounded-xl border-2 border-border bg-background/40 px-3 py-2"
+                              >
+                                <span className="w-5 text-sm font-bold text-primary tabular-nums">
+                                  {i + 1}º
+                                </span>
+                                <span className="w-24 shrink-0 text-xs font-medium text-foreground">
+                                  {formatDate(x.m.date)}
+                                </span>
+                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-border">
+                                  <div
+                                    className="h-full rounded-full bg-primary"
+                                    style={{ width: `${Math.max(x.index, 3)}%` }}
+                                  />
+                                </div>
+                                <span className="w-10 text-right text-xs font-semibold text-primary tabular-nums">
+                                  {x.index.toFixed(0)}%
+                                </span>
+                                <span className="w-24 text-right text-[11px] text-muted-foreground tabular-nums">
+                                  {x.involved}/{x.teamGoals} gols
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       </>
                       )}
                     </div>
