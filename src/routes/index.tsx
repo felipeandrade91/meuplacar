@@ -2139,6 +2139,40 @@ function BestMatchCard({
   );
 }
 
+function DecisiveMatchCard({
+  label, item, accent,
+}: {
+  label: string;
+  item: {
+    m: Match; index: number; involved: number; teamGoals: number;
+    margin: number; result: MatchResult; decided: boolean;
+  };
+  accent?: boolean;
+}) {
+  const resultLabel = item.result === "W" ? "Vitória" : item.result === "L" ? "Derrota" : "Empate";
+  return (
+    <div className={`rounded-2xl border-2 p-4 ${accent ? "border-primary/40 bg-primary/10" : "border-border bg-card"}`}>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`mt-1 text-2xl font-bold tabular-nums ${accent ? "text-primary" : "text-foreground"}`}>
+        {item.index.toFixed(0)}%
+        <span className="ml-2 text-sm font-normal text-muted-foreground">
+          ({item.involved}/{item.teamGoals} gols)
+        </span>
+      </p>
+      <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+        <Calendar className={`h-3.5 w-3.5 ${accent ? "text-primary" : "text-muted-foreground"}`} />
+        {formatDate(item.m.date)}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+        {resultLabel} {item.m.my_team_score}–{item.m.opponent_score} · {item.m.goals}G {item.m.assists}A
+        {item.decided ? " · decidiu o jogo" : ""}
+      </p>
+    </div>
+  );
+}
+
+
+
 function MatchRow({
   match, onSave, onRequestRemove,
 }: {
