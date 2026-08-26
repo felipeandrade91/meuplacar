@@ -1129,22 +1129,8 @@ function Index() {
                           }
                         />
                       </div>
-                      <div className="mb-3">
-                        <StatCard
-                          label="Impacto decisivo"
-                          value={
-                            teamStats.totalWins > 0
-                              ? `${teamStats.decisivePct.toFixed(0)}%`
-                              : "—"
-                          }
-                          accent
-                          sub={
-                            teamStats.totalWins > 0
-                              ? `${teamStats.decisiveWins} de ${teamStats.totalWins} vitórias em que seus gols + assistências foram iguais ou maiores que a margem do placar`
-                              : "Sem vitórias registradas"
-                          }
-                        />
-                      </div>
+
+
 
                       <div className="mb-4 grid grid-cols-2 gap-3">
                         <StatCard
@@ -1191,11 +1177,28 @@ function Index() {
                         <div className="mt-6 border-t-2 border-border pt-5">
                           <h4 className="mb-1 text-sm font-semibold">Quão decisivo você foi</h4>
                           <p className="mb-4 text-xs text-muted-foreground">
-                            Índice decisivo de uma partida = quanto dos gols do time você
-                            participou (gols + assistências ÷ gols do time). Considera os jogos
-                            com placar em que o time marcou.
+                            Índice decisivo de uma partida = suas participações (gols +
+                            assistências, limitadas ao total marcado) ÷ gols do time. Considera os
+                            jogos com placar em que o time marcou.
                           </p>
+                          <div className="mb-3">
+                            <StatCard
+                              label="Impacto decisivo"
+                              value={
+                                teamStats.totalWins > 0
+                                  ? `${teamStats.decisivePct.toFixed(0)}%`
+                                  : "—"
+                              }
+                              accent
+                              sub={
+                                teamStats.totalWins > 0
+                                  ? `${teamStats.decisiveWins} de ${teamStats.totalWins} vitórias em que seus gols + assistências foram iguais ou maiores que a margem do placar`
+                                  : "Sem vitórias registradas"
+                              }
+                            />
+                          </div>
                           <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+
                             <StatCard
                               label="Índice médio"
                               value={`${decisiveStats.avgAll.toFixed(0)}%`}
@@ -1267,9 +1270,10 @@ function Index() {
                                 <span className="w-10 text-right text-xs font-semibold text-primary tabular-nums">
                                   {x.index.toFixed(0)}%
                                 </span>
-                                <span className="w-24 text-right text-[11px] text-muted-foreground tabular-nums">
-                                  {x.involved}/{x.teamGoals} gols
+                                <span className="w-28 text-right text-[11px] text-muted-foreground tabular-nums">
+                                  {x.involved} de {x.teamGoals} gols
                                 </span>
+
                               </div>
                             ))}
                           </div>
@@ -1778,14 +1782,16 @@ function ResultSplitChart({
         const s = d[r.key];
         return (
           <div key={r.key}>
-            <div className="mb-1 flex items-center justify-between text-xs">
-              <span className="font-medium text-foreground">
-                {r.label} <span className="text-muted-foreground">({s.games} jogos)</span>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="text-base font-bold text-foreground">
+                {r.label}{" "}
+                <span className="text-xs font-medium text-muted-foreground">({s.games} jogos)</span>
               </span>
-              <span className="tabular-nums text-muted-foreground">
+              <span className="text-sm font-semibold tabular-nums text-foreground">
                 {s.games ? `${s.gaPerGame.toFixed(2)} G+A / jogo` : "—"}
               </span>
             </div>
+
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <div className="h-3.5 flex-1 overflow-hidden rounded-sm bg-muted/40">
@@ -2156,8 +2162,9 @@ function DecisiveMatchCard({
       <p className={`mt-1 text-2xl font-bold tabular-nums ${accent ? "text-primary" : "text-foreground"}`}>
         {item.index.toFixed(0)}%
         <span className="ml-2 text-sm font-normal text-muted-foreground">
-          ({item.involved}/{item.teamGoals} gols)
+          ({item.involved} de {item.teamGoals} gols do time)
         </span>
+
       </p>
       <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
         <Calendar className={`h-3.5 w-3.5 ${accent ? "text-primary" : "text-muted-foreground"}`} />
@@ -2165,8 +2172,10 @@ function DecisiveMatchCard({
       </p>
       <p className="mt-1 text-xs text-muted-foreground tabular-nums">
         {resultLabel} {item.m.my_team_score}–{item.m.opponent_score} · {item.m.goals}G {item.m.assists}A
+        {" "}= {item.m.goals + item.m.assists} participações
         {item.decided ? " · decidiu o jogo" : ""}
       </p>
+
     </div>
   );
 }
