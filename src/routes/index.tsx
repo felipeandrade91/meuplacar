@@ -578,6 +578,45 @@ function Index() {
     };
   }, [teamScored]);
 
+  // ===== Quão decisivo você foi (por partida) =====
+  const decisiveStats = useMemo(() => {
+    const list = teamScored
+      .filter((m) => (m.my_team_score ?? 0) > 0)
+      .map((m) => {
+        const teamGoals = m.my_team_score ?? 0;
+        const involved = Math.min(m.goals + m.assists, teamGoals);
+        const margin = teamGoals - (m.opponent_score ?? 0);
+        const result = matchResult(m);
+        return {
+          m,
+          teamGoals,
+          involved,
+          margin,
+          result,
+          index: (involved / teamGoals) * 100,
+          decided: result === "W" && m.goals + m.assists >= Math.abs(margin),
+        };
+      });
+    if (!list.length) return null;
+    const sorted = [...list].sort((a, b) => b.index - a.index || b.involved - a.involved);
+    const avg = (arr: typeof list) =>
+      arr.length ? arr.reduce((s, x) => s + x.index, 0) / arr.length : null;
+    const wins = list.filter((x) => x.result === "W");
+    const losses = list.filter((x) => x.result === "L");
+    return {
+      all: list,
+      top: sorted.slice(0, 3),
+      best: sorted[0],
+      worst: sorted[sorted.length - 1],
+      avgAll: avg(list)!,
+      avgWins: avg(wins),
+      avgLosses: avg(losses),
+      decidedGames: list.filter((x) => x.decided).length,
+      games: list.length,
+    };
+  }, [teamScored]);
+
+
   // ===== Meus números por resultado (vitória × empate × derrota) =====
   const byResultStats = useMemo(() => {
     if (!teamScored.length) return null;
