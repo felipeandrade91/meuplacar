@@ -2166,8 +2166,10 @@ function DecisiveMatchCard({
       </p>
       <p className="mt-1 text-xs text-muted-foreground tabular-nums">
         {resultLabel} {item.m.my_team_score}–{item.m.opponent_score} · {item.m.goals}G {item.m.assists}A
+        {" "}= {item.m.goals + item.m.assists} participações
         {item.decided ? " · decidiu o jogo" : ""}
       </p>
+
     </div>
   );
 }
