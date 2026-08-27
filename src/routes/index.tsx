@@ -580,39 +580,30 @@ function Index() {
 
   // ===== Quão decisivo você foi (por partida) =====
   const decisiveStats = useMemo(() => {
-    const list = teamScored
-      .filter((m) => (m.my_team_score ?? 0) > 0)
+    const wins = teamScored
+      .filter((m) => matchResult(m) === "W")
       .map((m) => {
         const teamGoals = m.my_team_score ?? 0;
-        const involved = Math.min(m.goals + m.assists, teamGoals);
-        const margin = teamGoals - (m.opponent_score ?? 0);
-        const result = matchResult(m);
+        const participations = m.goals + m.assists;
+        const margin = Math.abs(teamGoals - (m.opponent_score ?? 0));
         return {
           m,
           teamGoals,
-          involved,
+          participations,
           margin,
-          result,
-          index: (involved / teamGoals) * 100,
-          decided: result === "W" && m.goals + m.assists >= Math.abs(margin),
+          surplus: participations - margin,
+          decided: participations >= margin,
         };
       });
-    if (!list.length) return null;
-    const sorted = [...list].sort((a, b) => b.index - a.index || b.involved - a.involved);
-    const avg = (arr: typeof list) =>
-      arr.length ? arr.reduce((s, x) => s + x.index, 0) / arr.length : null;
-    const wins = list.filter((x) => x.result === "W");
-    const losses = list.filter((x) => x.result === "L");
+    if (!wins.length) return null;
+    const decisive = wins.filter((x) => x.decided);
+    const sorted = [...decisive].sort(
+      (a, b) => b.surplus - a.surplus || b.participations - a.participations,
+    );
     return {
-      all: list,
       top: sorted.slice(0, 3),
-      best: sorted[0],
-      worst: sorted[sorted.length - 1],
-      avgAll: avg(list)!,
-      avgWins: avg(wins),
-      avgLosses: avg(losses),
-      decidedGames: list.filter((x) => x.decided).length,
-      games: list.length,
+      best: sorted[0] ?? null,
+      worst: sorted[sorted.length - 1] ?? null,
     };
   }, [teamScored]);
 
@@ -1177,9 +1168,9 @@ function Index() {
                         <div className="mt-6 border-t-2 border-border pt-5">
                           <h4 className="mb-1 text-sm font-semibold">Quão decisivo você foi</h4>
                           <p className="mb-4 text-xs text-muted-foreground">
-                            Índice decisivo de uma partida = suas participações (gols +
-                            assistências, limitadas ao total marcado) ÷ gols do time. Considera os
-                            jogos com placar em que o time marcou.
+                            Uma vitória é considerada decisiva quando seus gols + assistências são
+                            iguais ou maiores que a margem do placar. Exemplo: em uma vitória por
+                            14–9, a margem é 5.
                           </p>
                           <div className="mb-3">
                             <StatCard
@@ -1197,44 +1188,7 @@ function Index() {
                               }
                             />
                           </div>
-                          <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-
-                            <StatCard
-                              label="Índice médio"
-                              value={`${decisiveStats.avgAll.toFixed(0)}%`}
-                              accent
-                              small
-                              sub={`média em ${decisiveStats.games} jogos`}
-                            />
-                            <StatCard
-                              label="Média em vitórias"
-                              value={
-                                decisiveStats.avgWins != null
-                                  ? `${decisiveStats.avgWins.toFixed(0)}%`
-                                  : "—"
-                              }
-                              highlight
-                              small
-                              sub="quando o time venceu"
-                            />
-                            <StatCard
-                              label="Média em derrotas"
-                              value={
-                                decisiveStats.avgLosses != null
-                                  ? `${decisiveStats.avgLosses.toFixed(0)}%`
-                                  : "—"
-                              }
-                              small
-                              sub="quando o time perdeu"
-                            />
-                            <StatCard
-                              label="Jogos que você decidiu"
-                              value={decisiveStats.decidedGames}
-                              small
-                              accent
-                              sub="vitórias com G+A ≥ margem"
-                            />
-                          </div>
+                          {decisiveStats.best && decisiveStats.worst && (
                           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <DecisiveMatchCard
                               label="Partida mais decisiva"
@@ -1246,6 +1200,9 @@ function Index() {
                               item={decisiveStats.worst}
                             />
                           </div>
+                          )}
+                          {decisiveStats.top.length > 0 && (
+                          <>
                           <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                             Top 3 partidas mais decisivas
                           </p>
@@ -1261,22 +1218,18 @@ function Index() {
                                 <span className="w-24 shrink-0 text-xs font-medium text-foreground">
                                   {formatDate(x.m.date)}
                                 </span>
-                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-border">
-                                  <div
-                                    className="h-full rounded-full bg-primary"
-                                    style={{ width: `${Math.max(x.index, 3)}%` }}
-                                  />
-                                </div>
-                                <span className="w-10 text-right text-xs font-semibold text-primary tabular-nums">
-                                  {x.index.toFixed(0)}%
+                                <span className="flex-1 text-xs font-semibold text-foreground tabular-nums">
+                                  {x.participations} participações · margem {x.margin}
                                 </span>
-                                <span className="w-28 text-right text-[11px] text-muted-foreground tabular-nums">
-                                  {x.involved} de {x.teamGoals} gols
+                                <span className="text-right text-[11px] text-muted-foreground tabular-nums">
+                                  {x.m.goals} de {x.teamGoals} gols do time
                                 </span>
 
                               </div>
                             ))}
                           </div>
+                          </>
+                          )}
                         </div>
                       )}
 
@@ -2150,19 +2103,18 @@ function DecisiveMatchCard({
 }: {
   label: string;
   item: {
-    m: Match; index: number; involved: number; teamGoals: number;
-    margin: number; result: MatchResult | null; decided: boolean;
+    m: Match; participations: number; teamGoals: number;
+    margin: number; surplus: number; decided: boolean;
   };
   accent?: boolean;
 }) {
-  const resultLabel = item.result === "W" ? "Vitória" : item.result === "L" ? "Derrota" : "Empate";
   return (
     <div className={`rounded-2xl border-2 p-4 ${accent ? "border-primary/40 bg-primary/10" : "border-border bg-card"}`}>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className={`mt-1 text-2xl font-bold tabular-nums ${accent ? "text-primary" : "text-foreground"}`}>
-        {item.index.toFixed(0)}%
+        {item.participations} participações
         <span className="ml-2 text-sm font-normal text-muted-foreground">
-          ({item.involved} de {item.teamGoals} gols do time)
+          margem {item.margin}
         </span>
 
       </p>
@@ -2171,9 +2123,8 @@ function DecisiveMatchCard({
         {formatDate(item.m.date)}
       </p>
       <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-        {resultLabel} {item.m.my_team_score}–{item.m.opponent_score} · {item.m.goals}G {item.m.assists}A
-        {" "}= {item.m.goals + item.m.assists} participações
-        {item.decided ? " · decidiu o jogo" : ""}
+        Vitória {item.m.my_team_score}–{item.m.opponent_score} · {item.m.goals}G {item.m.assists}A
+        {" "}= {item.participations} participações · {item.m.goals} de {item.teamGoals} gols do time
       </p>
 
     </div>
