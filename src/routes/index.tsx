@@ -48,6 +48,8 @@ const MONTH_FULL = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho
 const DEFAULT_CAL_PER_GAME = 681.4;
 const DEFAULT_KM_PER_GAME = 4.2575;
 const VICTORY_START = "2026-06-01"; // a partir de junho/2026
+const YEAR_GOAL_GOALS = 100;
+const YEAR_GOAL_ASSISTS = 50;
 
 type MatchResult = "W" | "D" | "L";
 function matchResult(m: Match): MatchResult | null {
