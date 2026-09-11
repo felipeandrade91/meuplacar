@@ -48,6 +48,8 @@ const MONTH_FULL = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho
 const DEFAULT_CAL_PER_GAME = 681.4;
 const DEFAULT_KM_PER_GAME = 4.2575;
 const VICTORY_START = "2026-06-01"; // a partir de junho/2026
+const YEAR_GOAL_GOALS = 100;
+const YEAR_GOAL_ASSISTS = 50;
 
 type MatchResult = "W" | "D" | "L";
 function matchResult(m: Match): MatchResult | null {
@@ -253,10 +255,38 @@ function Index() {
     };
   }, [filteredMatches, physical]);
 
+  // ---- Meta do ano (gols e assistências) ----
+  const yearGoal = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const ofYear = matches.filter((m) => m.date.startsWith(String(year)));
+    const goals = ofYear.reduce((s, m) => s + m.goals, 0);
+    const assists = ofYear.reduce((s, m) => s + m.assists, 0);
+    const games = ofYear.length;
+    // Quintas-feiras restantes até 31/dez (a partir de amanhã)
+    let remainingGames = 0;
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const end = new Date(year, 11, 31);
+    while (d <= end) {
+      if (d.getDay() === 4) remainingGames += 1;
+      d.setDate(d.getDate() + 1);
+    }
+    return {
+      year,
+      games,
+      goals,
+      assists,
+      remainingGames,
+      goalsPerGame: games ? goals / games : 0,
+      assistsPerGame: games ? assists / games : 0,
+    };
+  }, [matches]);
+
   const sorted = useMemo(
     () => [...filteredMatches].sort((a, b) => b.date.localeCompare(a.date)),
     [filteredMatches],
   );
+
 
   // History search & filter (applied on top of the period-filtered list)
   const historySorted = useMemo(() => {
@@ -1363,6 +1393,44 @@ function Index() {
               )}
             </section>
 
+            {/* Meta do ano */}
+            <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Meta do ano</h2>
+                <span className="rounded-full border-2 border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {yearGoal.year}
+                </span>
+              </div>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Meta de <strong className="font-medium text-foreground">{YEAR_GOAL_GOALS} gols</strong> e{" "}
+                <strong className="font-medium text-foreground">{YEAR_GOAL_ASSISTS} assistências</strong> até 31/12.
+                Restam <strong className="font-medium text-primary">{yearGoal.remainingGames}</strong> jogos semanais
+                (quintas-feiras) neste ano.
+              </p>
+              <div className="mb-4 grid grid-cols-3 gap-3">
+                <StatCard label="Jogos no ano" value={yearGoal.games} small />
+                <StatCard label="Gols no ano" value={yearGoal.goals} small accent />
+                <StatCard label="Assist. no ano" value={yearGoal.assists} small accent />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <GoalGauge
+                  label="Gols"
+                  current={yearGoal.goals}
+                  target={YEAR_GOAL_GOALS}
+                  remainingGames={yearGoal.remainingGames}
+                  perGame={yearGoal.goalsPerGame}
+                />
+                <GoalGauge
+                  label="Assistências"
+                  current={yearGoal.assists}
+                  target={YEAR_GOAL_ASSISTS}
+                  remainingGames={yearGoal.remainingGames}
+                  perGame={yearGoal.assistsPerGame}
+                />
+              </div>
+            </section>
+
+
             {/* Physical performance (last metric section, above historical records) */}
             <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
               <div className="mb-1 flex items-center justify-between">
@@ -1618,9 +1686,12 @@ function Index() {
 
 function useCountUp(value: number, duration = 700) {
   const [display, setDisplay] = useState(value);
-  const fromRef = useRef(value);
+  const displayRef = useRef(value);
   useEffect(() => {
-    const from = fromRef.current;
+    displayRef.current = display;
+  }, [display]);
+  useEffect(() => {
+    const from = displayRef.current;
     const to = value;
     if (from === to) return;
     const start = performance.now();
@@ -1628,9 +1699,10 @@ function useCountUp(value: number, duration = 700) {
     const tick = (t: number) => {
       const p = Math.min(1, (t - start) / duration);
       const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(from + (to - from) * eased);
+      const next = p < 1 ? from + (to - from) * eased : to;
+      displayRef.current = next;
+      setDisplay(next);
       if (p < 1) raf = requestAnimationFrame(tick);
-      else fromRef.current = to;
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -1643,9 +1715,8 @@ function StatCard({
 }: {
   label: string; value: number | string; accent?: boolean; highlight?: boolean; small?: boolean; sub?: string;
 }) {
-  const numeric = typeof value === "number" ? value : Number(value);
-  const animate = !Number.isNaN(numeric) && typeof value !== "string";
-  const displayed = useCountUp(animate ? numeric : 0);
+  const animate = typeof value === "number" && Number.isFinite(value);
+  const displayed = useCountUp(animate ? value : 0);
   return (
     <div className={`rounded-2xl border p-4 transition-colors ${highlight ? "border-primary/40 bg-primary/10" : "border-border bg-card"}`}>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -1653,6 +1724,88 @@ function StatCard({
         {animate ? Math.round(displayed).toLocaleString("pt-BR") : value}
       </p>
       {sub && <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">{sub}</p>}
+    </div>
+  );
+}
+
+function GoalGauge({
+  label, current, target, remainingGames, perGame,
+}: {
+  label: string; current: number; target: number; remainingGames: number; perGame: number;
+}) {
+  const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+  const animated = useCountUp(pct, 900);
+  const missing = Math.max(0, target - current);
+  const needPerGame = remainingGames > 0 ? missing / remainingGames : 0;
+  const projected = current + perGame * remainingGames;
+  const onTrack = projected >= target;
+
+  // semicircle arc
+  const R = 78, CX = 100, CY = 96;
+  const arcLen = Math.PI * R;
+  const polar = (deg: number) => {
+    const r = (deg * Math.PI) / 180;
+    return { x: CX + R * Math.cos(r), y: CY - R * Math.sin(r) };
+  };
+  const a = polar(180), b = polar(0);
+  const d = `M ${a.x} ${a.y} A ${R} ${R} 0 0 1 ${b.x} ${b.y}`;
+  const needleDeg = 180 - (animated / 100) * 180;
+  const n = polar(needleDeg);
+  const nx = CX + (R - 16) * Math.cos((needleDeg * Math.PI) / 180);
+  const ny = CY - (R - 16) * Math.sin((needleDeg * Math.PI) / 180);
+
+  return (
+    <div className="rounded-2xl border-2 border-border bg-background/40 p-4">
+      <div className="mb-1 flex items-center justify-between">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+            onTrack ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground"
+          }`}
+        >
+          {onTrack ? "no ritmo" : "abaixo do ritmo"}
+        </span>
+      </div>
+      <svg viewBox="0 0 200 142" className="w-full">
+        <path d={d} fill="none" stroke="var(--color-secondary)" strokeWidth="14" strokeLinecap="round" />
+        <path
+          d={d}
+          fill="none"
+          stroke="var(--color-primary)"
+          strokeWidth="14"
+          strokeLinecap="round"
+          strokeDasharray={arcLen}
+          strokeDashoffset={arcLen * (1 - animated / 100)}
+        />
+        <line x1={CX} y1={CY} x2={nx} y2={ny} stroke="var(--color-foreground)" strokeWidth="3" strokeLinecap="round" />
+        <circle cx={CX} cy={CY} r="5" fill="var(--color-foreground)" />
+        <text x={CX} y={CY + 26} textAnchor="middle" className="fill-primary" style={{ fontSize: 28, fontWeight: 700 }}>
+          {Math.round(animated)}%
+        </text>
+        <text x={CX} y={CY + 42} textAnchor="middle" fill="var(--color-muted-foreground)" style={{ fontSize: 12 }}>
+          {current} / {target}
+        </text>
+      </svg>
+
+      <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+        <div className="rounded-xl border border-border bg-card px-2 py-2">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Faltam</p>
+          <p className="text-lg font-bold tabular-nums text-foreground">{missing}</p>
+          <p className="text-[10px] text-muted-foreground tabular-nums">
+            {(100 - pct).toFixed(0)}% da meta
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-card px-2 py-2">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Ritmo necessário</p>
+          <p className="text-lg font-bold tabular-nums text-primary">
+            {remainingGames > 0 ? needPerGame.toFixed(1) : "—"}
+          </p>
+          <p className="text-[10px] text-muted-foreground">por jogo</p>
+        </div>
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
+        Projeção no ritmo atual ({perGame.toFixed(2)}/jogo): <strong className="font-medium text-foreground">{Math.round(projected)}</strong>
+      </p>
     </div>
   );
 }
