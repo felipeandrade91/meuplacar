@@ -1766,7 +1766,7 @@ function GoalGauge({
           {onTrack ? "no ritmo" : "abaixo do ritmo"}
         </span>
       </div>
-      <svg viewBox="0 0 200 112" className="w-full">
+      <svg viewBox="0 0 200 142" className="w-full">
         <path d={d} fill="none" stroke="var(--color-secondary)" strokeWidth="14" strokeLinecap="round" />
         <path
           d={d}
@@ -1779,14 +1779,14 @@ function GoalGauge({
         />
         <line x1={CX} y1={CY} x2={nx} y2={ny} stroke="var(--color-foreground)" strokeWidth="3" strokeLinecap="round" />
         <circle cx={CX} cy={CY} r="5" fill="var(--color-foreground)" />
-        <circle cx={n.x} cy={n.y} r="0" fill="none" />
-        <text x={CX} y={CY - 26} textAnchor="middle" className="fill-primary" style={{ fontSize: 26, fontWeight: 700 }}>
+        <text x={CX} y={CY + 26} textAnchor="middle" className="fill-primary" style={{ fontSize: 28, fontWeight: 700 }}>
           {Math.round(animated)}%
         </text>
-        <text x={CX} y={CY - 8} textAnchor="middle" className="fill-current text-muted-foreground" style={{ fontSize: 11 }}>
+        <text x={CX} y={CY + 42} textAnchor="middle" fill="var(--color-muted-foreground)" style={{ fontSize: 12 }}>
           {current} / {target}
         </text>
       </svg>
+
       <div className="mt-2 grid grid-cols-2 gap-2 text-center">
         <div className="rounded-xl border border-border bg-card px-2 py-2">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Faltam</p>
