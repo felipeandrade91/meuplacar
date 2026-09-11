@@ -1391,6 +1391,44 @@ function Index() {
               )}
             </section>
 
+            {/* Meta do ano */}
+            <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Meta do ano</h2>
+                <span className="rounded-full border-2 border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {yearGoal.year}
+                </span>
+              </div>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Meta de <strong className="font-medium text-foreground">{YEAR_GOAL_GOALS} gols</strong> e{" "}
+                <strong className="font-medium text-foreground">{YEAR_GOAL_ASSISTS} assistências</strong> até 31/12.
+                Restam <strong className="font-medium text-primary">{yearGoal.remainingGames}</strong> jogos semanais
+                (quintas-feiras) neste ano.
+              </p>
+              <div className="mb-4 grid grid-cols-3 gap-3">
+                <StatCard label="Jogos no ano" value={yearGoal.games} small />
+                <StatCard label="Gols no ano" value={yearGoal.goals} small accent />
+                <StatCard label="Assist. no ano" value={yearGoal.assists} small accent />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <GoalGauge
+                  label="Gols"
+                  current={yearGoal.goals}
+                  target={YEAR_GOAL_GOALS}
+                  remainingGames={yearGoal.remainingGames}
+                  perGame={yearGoal.goalsPerGame}
+                />
+                <GoalGauge
+                  label="Assistências"
+                  current={yearGoal.assists}
+                  target={YEAR_GOAL_ASSISTS}
+                  remainingGames={yearGoal.remainingGames}
+                  perGame={yearGoal.assistsPerGame}
+                />
+              </div>
+            </section>
+
+
             {/* Physical performance (last metric section, above historical records) */}
             <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
               <div className="mb-1 flex items-center justify-between">
