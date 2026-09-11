@@ -253,10 +253,38 @@ function Index() {
     };
   }, [filteredMatches, physical]);
 
+  // ---- Meta do ano (gols e assistências) ----
+  const yearGoal = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const ofYear = matches.filter((m) => m.date.startsWith(String(year)));
+    const goals = ofYear.reduce((s, m) => s + m.goals, 0);
+    const assists = ofYear.reduce((s, m) => s + m.assists, 0);
+    const games = ofYear.length;
+    // Quintas-feiras restantes até 31/dez (a partir de amanhã)
+    let remainingGames = 0;
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const end = new Date(year, 11, 31);
+    while (d <= end) {
+      if (d.getDay() === 4) remainingGames += 1;
+      d.setDate(d.getDate() + 1);
+    }
+    return {
+      year,
+      games,
+      goals,
+      assists,
+      remainingGames,
+      goalsPerGame: games ? goals / games : 0,
+      assistsPerGame: games ? assists / games : 0,
+    };
+  }, [matches]);
+
   const sorted = useMemo(
     () => [...filteredMatches].sort((a, b) => b.date.localeCompare(a.date)),
     [filteredMatches],
   );
+
 
   // History search & filter (applied on top of the period-filtered list)
   const historySorted = useMemo(() => {
