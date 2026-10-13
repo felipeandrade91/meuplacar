@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Trophy, Plus, Trash2, Calendar, Target, Handshake, Loader2, LogOut, Pencil, Check, X, Film,
-  Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User, Ruler, Info,
+  Flame, Timer, Activity, TrendingUp, TrendingDown, Share2, Download, Filter, User, Ruler, Info, ArrowUpRight, Play,
 } from "lucide-react";
 import { Search, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,10 +15,15 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+import { Button } from "@/components/ui/button";
+import { MatchDatePicker } from "@/components/match-date-picker";
+import { chronologicalMatches, latestFiveMatches, withRollingParticipation } from "@/lib/recent-matches";
+
 type MatchType = "quinta" | "pelada";
 
 interface Match {
   id: string;
+  created_at: string;
   date: string;
   type: MatchType;
   location?: string;
@@ -48,8 +53,6 @@ const MONTH_FULL = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho
 const DEFAULT_CAL_PER_GAME = 681.4;
 const DEFAULT_KM_PER_GAME = 4.2575;
 const VICTORY_START = "2026-06-01"; // a partir de junho/2026
-const YEAR_GOAL_GOALS = 100;
-const YEAR_GOAL_ASSISTS = 50;
 
 type MatchResult = "W" | "D" | "L";
 function matchResult(m: Match): MatchResult | null {
@@ -131,6 +134,14 @@ function buildSummary(ms: Match[], label: string, withBestMonth: boolean): Summa
 }
 
 export const Route = createFileRoute("/")({
+  head: () => ({ meta: [
+    { title: "Meu Placar — Sua temporada de futebol" },
+    { name: "description", content: "Seus jogos, gols, assistências e melhores momentos do futebol em um só lugar." },
+    { property: "og:title", content: "Meu Placar — Sua temporada de futebol" },
+    { property: "og:description", content: "Acompanhe os registros e estatísticas da sua temporada de futebol." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: Index,
 });
 
@@ -182,6 +193,7 @@ function Index() {
       if (!matchesRes.error && matchesRes.data) {
         setMatches(matchesRes.data.map((m) => ({
           id: m.id,
+          created_at: m.created_at,
           date: m.date,
           type: m.type as MatchType,
           location: m.location ?? undefined,
@@ -255,35 +267,8 @@ function Index() {
     };
   }, [filteredMatches, physical]);
 
-  // ---- Meta do ano (gols e assistências) ----
-  const yearGoal = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const ofYear = matches.filter((m) => m.date.startsWith(String(year)));
-    const goals = ofYear.reduce((s, m) => s + m.goals, 0);
-    const assists = ofYear.reduce((s, m) => s + m.assists, 0);
-    const games = ofYear.length;
-    // Quintas-feiras restantes até 31/dez (a partir de amanhã)
-    let remainingGames = 0;
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const end = new Date(year, 11, 31);
-    while (d <= end) {
-      if (d.getDay() === 4) remainingGames += 1;
-      d.setDate(d.getDate() + 1);
-    }
-    return {
-      year,
-      games,
-      goals,
-      assists,
-      remainingGames,
-      goalsPerGame: games ? goals / games : 0,
-      assistsPerGame: games ? assists / games : 0,
-    };
-  }, [matches]);
-
   const sorted = useMemo(
-    () => [...filteredMatches].sort((a, b) => b.date.localeCompare(a.date)),
+    () => chronologicalMatches(filteredMatches).reverse(),
     [filteredMatches],
   );
 
@@ -341,7 +326,7 @@ function Index() {
 
   // ---- Sequences (based on all-time, chronological asc) ----
   const sequences = useMemo(() => {
-    const asc = [...matches].sort((a, b) => a.date.localeCompare(b.date));
+    const asc = chronologicalMatches(matches);
     const compute = (pred: (m: Match) => boolean) => {
       let best = 0, cur = 0, currentNow = 0;
       for (const m of asc) {
@@ -361,20 +346,21 @@ function Index() {
     };
   }, [matches]);
 
-  // ---- Last 5 average vs overall (all-time) ----
+  // ---- Last five games in the selected period vs that period's average ----
   const recent = useMemo(() => {
-    if (matches.length === 0) return null;
-    const asc = [...matches].sort((a, b) => a.date.localeCompare(b.date));
-    const last5 = asc.slice(-5);
+    if (filteredMatches.length === 0) return null;
+    const asc = chronologicalMatches(filteredMatches);
+    const last5 = latestFiveMatches(filteredMatches);
     const avg = (arr: Match[], key: "goals" | "assists") =>
       arr.length ? arr.reduce((s, m) => s + m[key], 0) / arr.length : 0;
     return {
+      games: last5.length,
       goalsRecent: avg(last5, "goals"),
       goalsAll: avg(asc, "goals"),
       assistsRecent: avg(last5, "assists"),
       assistsAll: avg(asc, "assists"),
     };
-  }, [matches]);
+  }, [filteredMatches]);
 
   // ---- Month vs previous month ----
   const monthCompare = useMemo(() => {
@@ -396,8 +382,7 @@ function Index() {
 
   const chartData = useMemo(
     () =>
-      [...matches]
-        .sort((a, b) => a.date.localeCompare(b.date))
+      chronologicalMatches(matches)
         .map((m) => ({ date: m.date, goals: m.goals, assists: m.assists })),
     [matches],
   );
@@ -554,9 +539,7 @@ function Index() {
   );
 
   const teamStats = useMemo(() => {
-    const withScore = teamScored
-      .filter((m) => m.date >= VICTORY_START && m.my_team_score != null && m.opponent_score != null)
-      .sort((a, b) => a.date.localeCompare(b.date)); // ordem crescente por data
+    const withScore = chronologicalMatches(teamScored);
     if (!withScore.length) return null;
     const teamGoals = withScore.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
     const oppGoals = withScore.reduce((s, m) => s + (m.opponent_score ?? 0), 0);
@@ -572,7 +555,7 @@ function Index() {
     const winsWhenIScored = iScored.filter((m) => matchResult(m) === "W").length;
     const totalWins = withScore.filter((m) => matchResult(m) === "W").length;
     // Participação nos 5 jogos mais recentes com placar
-    const last5 = withScore.slice(-5);
+    const last5 = latestFiveMatches(withScore);
     const last5TeamGoals = last5.reduce((s, m) => s + (m.my_team_score ?? 0), 0);
     const last5MyGoals = last5.reduce((s, m) => s + m.goals, 0);
     // Impacto decisivo: vitórias em que sua participação (G+A) foi >= margem do placar
@@ -658,17 +641,8 @@ function Index() {
     return { W: group("W"), D: group("D"), L: group("L") };
   }, [teamScored]);
 
-  // Rolling 5-match avg of G+A overlaid on line chart
-  const chartWithRolling = useMemo(
-    () =>
-      chartData.map((d, i) => {
-        const from = Math.max(0, i - 4);
-        const win = chartData.slice(from, i + 1);
-        const avg = win.reduce((s, x) => s + x.goals + x.assists, 0) / win.length;
-        return { ...d, rolling: avg };
-      }),
-    [chartData],
-  );
+  // At each point, use that game and up to four preceding games.
+  const chartWithRolling = useMemo(() => withRollingParticipation(chartData), [chartData]);
 
   // Scatter data: team goals (x) × my goals (y)
   const scatterData = useMemo(
@@ -723,7 +697,7 @@ function Index() {
     const { data, error } = await supabase.from("matches").insert(payload).select().single();
     if (!error && data) {
       setMatches((prev) => [{
-        id: data.id, date: data.date, type: data.type as MatchType,
+        id: data.id, created_at: data.created_at, date: data.date, type: data.type as MatchType,
         location: data.location ?? undefined, goals: data.goals, assists: data.assists,
         duration_minutes: (data as { duration_minutes?: number }).duration_minutes ?? 60,
         my_team_score: (data as { my_team_score?: number | null }).my_team_score ?? null,
@@ -939,8 +913,8 @@ function Index() {
             {/* Recent vs overall */}
             {recent && (
               <section className="mb-8 grid grid-cols-2 gap-3">
-                <TrendCard label="Gols (últ. 5)" recent={recent.goalsRecent} all={recent.goalsAll} />
-                <TrendCard label="Assist. (últ. 5)" recent={recent.assistsRecent} all={recent.assistsAll} />
+                <TrendCard label={`Gols (últ. ${recent.games})`} recent={recent.goalsRecent} all={recent.goalsAll} />
+                <TrendCard label={`Assist. (últ. ${recent.games})`} recent={recent.assistsRecent} all={recent.assistsAll} />
               </section>
             )}
 
@@ -984,13 +958,23 @@ function Index() {
               </section>
             )}
 
-            <section className="mb-8">
-              <Link
-                to="/melhores-lances"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 font-medium text-primary transition-colors hover:bg-primary/20"
-              >
-                <Film className="h-4 w-4" /> Meus melhores lances
-              </Link>
+            <section aria-labelledby="highlights-heading" className="mb-8 border-y-2 border-primary/40 py-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <Film className="h-8 w-8" />
+                    <Play className="absolute bottom-1 right-1 h-4 w-4 fill-primary" />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-primary">Minha coleção em vídeo</p>
+                    <h2 id="highlights-heading" className="text-xl font-semibold">Meus melhores lances</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Gols, assistências e momentos memoráveis.</p>
+                  </div>
+                </div>
+                <Button asChild size="lg" className="h-11 shrink-0 px-5">
+                  <Link to="/melhores-lances">Ver meus vídeos <ArrowUpRight /></Link>
+                </Button>
+              </div>
             </section>
 
             {chartData.length > 1 && (
@@ -1393,44 +1377,6 @@ function Index() {
               )}
             </section>
 
-            {/* Meta do ano */}
-            <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold">Meta do ano</h2>
-                <span className="rounded-full border-2 border-border bg-background/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {yearGoal.year}
-                </span>
-              </div>
-              <p className="mb-4 text-xs text-muted-foreground">
-                Meta de <strong className="font-medium text-foreground">{YEAR_GOAL_GOALS} gols</strong> e{" "}
-                <strong className="font-medium text-foreground">{YEAR_GOAL_ASSISTS} assistências</strong> até 31/12.
-                Restam <strong className="font-medium text-primary">{yearGoal.remainingGames}</strong> jogos semanais
-                (quintas-feiras) neste ano.
-              </p>
-              <div className="mb-4 grid grid-cols-3 gap-3">
-                <StatCard label="Jogos no ano" value={yearGoal.games} small />
-                <StatCard label="Gols no ano" value={yearGoal.goals} small accent />
-                <StatCard label="Assist. no ano" value={yearGoal.assists} small accent />
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <GoalGauge
-                  label="Gols"
-                  current={yearGoal.goals}
-                  target={YEAR_GOAL_GOALS}
-                  remainingGames={yearGoal.remainingGames}
-                  perGame={yearGoal.goalsPerGame}
-                />
-                <GoalGauge
-                  label="Assistências"
-                  current={yearGoal.assists}
-                  target={YEAR_GOAL_ASSISTS}
-                  remainingGames={yearGoal.remainingGames}
-                  perGame={yearGoal.assistsPerGame}
-                />
-              </div>
-            </section>
-
-
             {/* Physical performance (last metric section, above historical records) */}
             <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
               <div className="mb-1 flex items-center justify-between">
@@ -1479,12 +1425,10 @@ function Index() {
         <section className="mb-8 rounded-2xl border-2 border-border bg-card p-5">
           <h2 className="mb-4 text-lg font-semibold">Registrar jogo</h2>
           <form onSubmit={addMatch} className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5 text-sm">
+            <div className="flex flex-col gap-1.5 text-sm">
               <span className="text-muted-foreground">Data</span>
-              <input type="date" required value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary" />
-            </label>
+              <MatchDatePicker value={form.date} onChange={(date) => setForm((current) => ({ ...current, date }))} />
+            </div>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="text-muted-foreground">Tipo</span>
               <select value={form.type}
@@ -1728,88 +1672,6 @@ function StatCard({
   );
 }
 
-function GoalGauge({
-  label, current, target, remainingGames, perGame,
-}: {
-  label: string; current: number; target: number; remainingGames: number; perGame: number;
-}) {
-  const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
-  const animated = useCountUp(pct, 900);
-  const missing = Math.max(0, target - current);
-  const needPerGame = remainingGames > 0 ? missing / remainingGames : 0;
-  const projected = current + perGame * remainingGames;
-  const onTrack = projected >= target;
-
-  // semicircle arc
-  const R = 78, CX = 100, CY = 96;
-  const arcLen = Math.PI * R;
-  const polar = (deg: number) => {
-    const r = (deg * Math.PI) / 180;
-    return { x: CX + R * Math.cos(r), y: CY - R * Math.sin(r) };
-  };
-  const a = polar(180), b = polar(0);
-  const d = `M ${a.x} ${a.y} A ${R} ${R} 0 0 1 ${b.x} ${b.y}`;
-  const needleDeg = 180 - (animated / 100) * 180;
-  const n = polar(needleDeg);
-  const nx = CX + (R - 16) * Math.cos((needleDeg * Math.PI) / 180);
-  const ny = CY - (R - 16) * Math.sin((needleDeg * Math.PI) / 180);
-
-  return (
-    <div className="rounded-2xl border-2 border-border bg-background/40 p-4">
-      <div className="mb-1 flex items-center justify-between">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-            onTrack ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground"
-          }`}
-        >
-          {onTrack ? "no ritmo" : "abaixo do ritmo"}
-        </span>
-      </div>
-      <svg viewBox="0 0 200 142" className="w-full">
-        <path d={d} fill="none" stroke="var(--color-secondary)" strokeWidth="14" strokeLinecap="round" />
-        <path
-          d={d}
-          fill="none"
-          stroke="var(--color-primary)"
-          strokeWidth="14"
-          strokeLinecap="round"
-          strokeDasharray={arcLen}
-          strokeDashoffset={arcLen * (1 - animated / 100)}
-        />
-        <line x1={CX} y1={CY} x2={nx} y2={ny} stroke="var(--color-foreground)" strokeWidth="3" strokeLinecap="round" />
-        <circle cx={CX} cy={CY} r="5" fill="var(--color-foreground)" />
-        <text x={CX} y={CY + 26} textAnchor="middle" className="fill-primary" style={{ fontSize: 28, fontWeight: 700 }}>
-          {Math.round(animated)}%
-        </text>
-        <text x={CX} y={CY + 42} textAnchor="middle" fill="var(--color-muted-foreground)" style={{ fontSize: 12 }}>
-          {current} / {target}
-        </text>
-      </svg>
-
-      <div className="mt-2 grid grid-cols-2 gap-2 text-center">
-        <div className="rounded-xl border border-border bg-card px-2 py-2">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Faltam</p>
-          <p className="text-lg font-bold tabular-nums text-foreground">{missing}</p>
-          <p className="text-[10px] text-muted-foreground tabular-nums">
-            {(100 - pct).toFixed(0)}% da meta
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card px-2 py-2">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Ritmo necessário</p>
-          <p className="text-lg font-bold tabular-nums text-primary">
-            {remainingGames > 0 ? needPerGame.toFixed(1) : "—"}
-          </p>
-          <p className="text-[10px] text-muted-foreground">por jogo</p>
-        </div>
-      </div>
-      <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
-        Projeção no ritmo atual ({perGame.toFixed(2)}/jogo): <strong className="font-medium text-foreground">{Math.round(projected)}</strong>
-      </p>
-    </div>
-  );
-}
-
 function PeriodFilterBar({
   period, onChange, months, className = "",
 }: {
@@ -2004,7 +1866,7 @@ function TrendCard({ label, recent, all }: { label: string; recent: number; all:
           {diff >= 0 ? "+" : ""}{diff.toFixed(2)}
         </span>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">média geral: {all.toFixed(2)}</p>
+      <p className="mt-1 text-xs text-muted-foreground">média no período: {all.toFixed(2)}</p>
     </div>
   );
 }
