@@ -346,11 +346,11 @@ function Index() {
     };
   }, [matches]);
 
-  // ---- Last 5 average vs overall (all-time) ----
+  // ---- Last five games in the selected period vs that period's average ----
   const recent = useMemo(() => {
-    if (matches.length === 0) return null;
-    const asc = chronologicalMatches(matches);
-    const last5 = latestFiveMatches(matches);
+    if (filteredMatches.length === 0) return null;
+    const asc = chronologicalMatches(filteredMatches);
+    const last5 = latestFiveMatches(filteredMatches);
     const avg = (arr: Match[], key: "goals" | "assists") =>
       arr.length ? arr.reduce((s, m) => s + m[key], 0) / arr.length : 0;
     return {
@@ -360,7 +360,7 @@ function Index() {
       assistsRecent: avg(last5, "assists"),
       assistsAll: avg(asc, "assists"),
     };
-  }, [matches]);
+  }, [filteredMatches]);
 
   // ---- Month vs previous month ----
   const monthCompare = useMemo(() => {
@@ -1866,7 +1866,7 @@ function TrendCard({ label, recent, all }: { label: string; recent: number; all:
           {diff >= 0 ? "+" : ""}{diff.toFixed(2)}
         </span>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">média geral: {all.toFixed(2)}</p>
+      <p className="mt-1 text-xs text-muted-foreground">média no período: {all.toFixed(2)}</p>
     </div>
   );
 }
