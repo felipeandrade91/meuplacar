@@ -8,6 +8,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MatchDatePicker } from "@/components/match-date-picker";
 
 interface Highlight {
   id: string;
@@ -24,6 +25,14 @@ interface HighlightView extends Highlight {
 const MAX_BYTES = 15 * 1024 * 1024; // 15MB limit
 
 export const Route = createFileRoute("/melhores-lances")({
+  head: () => ({ meta: [
+    { title: "Meus melhores lances — Meu Placar" },
+    { name: "description", content: "Sua coleção pessoal de gols, assistências e melhores lances em vídeo." },
+    { property: "og:title", content: "Meus melhores lances — Meu Placar" },
+    { property: "og:description", content: "Guarde seus melhores momentos do futebol em vídeo." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: HighlightsPage,
 });
 
@@ -272,16 +281,10 @@ function UploadForm({ onCancel, onUploaded }: { onCancel: () => void; onUploaded
             className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary"
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-sm">
+        <div className="flex flex-col gap-1.5 text-sm">
           <span className="text-muted-foreground">Data do lance</span>
-          <input
-            type="date"
-            required
-            value={recordedOn}
-            onChange={(e) => setRecordedOn(e.target.value)}
-            className="rounded-lg border-2 border-border bg-input/40 px-3 py-2 text-foreground outline-none focus:border-primary"
-          />
-        </label>
+          <MatchDatePicker value={recordedOn} onChange={setRecordedOn} label="Data do lance" />
+        </div>
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="text-muted-foreground">Vídeo (até 15MB)</span>
           <input

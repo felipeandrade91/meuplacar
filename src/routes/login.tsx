@@ -5,6 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 
 export const Route = createFileRoute("/login")({
+  head: () => ({ meta: [
+    { title: "Entrar — Meu Placar" },
+    { name: "description", content: "Entre no Meu Placar para acessar seus jogos e vídeos pessoais." },
+    { property: "og:title", content: "Entrar — Meu Placar" },
+    { property: "og:description", content: "Acesse sua temporada de futebol com segurança." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: LoginPage,
 });
 
