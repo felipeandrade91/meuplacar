@@ -452,7 +452,7 @@ function Index() {
   }, [filteredResultsMatches]);
 
   const resultSequences = useMemo(() => {
-    const asc = [...resultsMatches].sort((a, b) => a.date.localeCompare(b.date));
+    const asc = chronologicalMatches(resultsMatches);
     const compute = (pred: (r: MatchResult) => boolean) => {
       let best = 0, cur = 0, currentNow = 0;
       for (const m of asc) {
@@ -1313,11 +1313,18 @@ function Index() {
                       </div>
                       {byResultStats.W.games > 0 && byResultStats.L.games > 0 && (
                         <p className="mt-4 rounded-lg border-2 border-dashed border-border bg-background/30 p-3 text-xs text-muted-foreground">
-                          {byResultStats.W.gaPerGame > byResultStats.L.gaPerGame
-                            ? `Você participa de ${(byResultStats.W.gaPerGame / (byResultStats.L.gaPerGame || 1)).toFixed(1)}× mais gols nas vitórias do que nas derrotas — sua hipótese se confirma no período.`
-                            : byResultStats.W.gaPerGame < byResultStats.L.gaPerGame
-                              ? "Curiosamente, sua média de participações é maior nas derrotas do que nas vitórias no período."
-                              : "Sua média de participações é igual em vitórias e derrotas no período."}
+                          {(() => {
+                            const W = byResultStats.W, L = byResultStats.L;
+                            const ratio = (a: number, b: number) =>
+                              b > 0 ? `${(a / b).toFixed(2).replace(".", ",")}×` : "—";
+                            const fmt = (v: number) => v.toFixed(2).replace(".", ",");
+                            const verdict = W.gPerGame > L.gPerGame
+                              ? "Você marca mais gols por jogo nas vitórias — sua hipótese se confirma no período."
+                              : W.gPerGame < L.gPerGame
+                                ? "Curiosamente, você marca mais gols por jogo nas derrotas no período."
+                                : "Sua média de gols é igual em vitórias e derrotas no período.";
+                            return `${verdict} Gols por jogo: ${fmt(W.gPerGame)} nas vitórias vs ${fmt(L.gPerGame)} nas derrotas (${ratio(W.gPerGame, L.gPerGame)}). Gols + assistências por jogo: ${fmt(W.gaPerGame)} vs ${fmt(L.gaPerGame)} (${ratio(W.gaPerGame, L.gaPerGame)}).`;
+                          })()}
                         </p>
                       )}
                     </div>
