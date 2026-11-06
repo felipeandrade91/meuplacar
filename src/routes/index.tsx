@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { MatchDatePicker } from "@/components/match-date-picker";
 import { chronologicalMatches, latestFiveMatches, withRollingParticipation } from "@/lib/recent-matches";
+import { localMonthKey, rankCompletedMonths } from "@/lib/monthly-ranking";
 
 type MatchType = "quinta" | "pelada";
 
@@ -402,8 +403,11 @@ function Index() {
     return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
   }, [matches]);
 
-  const bestMonth = useMemo(() => monthly.length ? monthly.reduce((b, m) => (m.goals + m.assists > b.goals + b.assists ? m : b)) : null, [monthly]);
-  const worstMonth = useMemo(() => monthly.length ? monthly.reduce((w, m) => (m.goals + m.assists < w.goals + w.assists ? m : w)) : null, [monthly]);
+  const currentMonthKey = localMonthKey(new Date());
+  const { best: bestMonth, worst: worstMonth } = useMemo(
+    () => rankCompletedMonths(monthly, m => m.goals + m.assists, currentMonthKey),
+    [monthly, currentMonthKey],
+  );
 
   const bestMatches = useMemo(() => {
     if (!matches.length) return null;
@@ -499,17 +503,9 @@ function Index() {
     return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
   }, [resultsMatches]);
 
-  const bestResultMonth = useMemo(
-    () => resultsMonthly.length
-      ? resultsMonthly.reduce((b, m) => ((m.w * 3 + m.d) > (b.w * 3 + b.d) ? m : b))
-      : null,
-    [resultsMonthly],
-  );
-  const worstResultMonth = useMemo(
-    () => resultsMonthly.length
-      ? resultsMonthly.reduce((w, m) => ((m.w * 3 + m.d) < (w.w * 3 + w.d) ? m : w))
-      : null,
-    [resultsMonthly],
+  const { best: bestResultMonth, worst: worstResultMonth } = useMemo(
+    () => rankCompletedMonths(resultsMonthly, m => m.w * 3 + m.d, currentMonthKey),
+    [resultsMonthly, currentMonthKey],
   );
 
   const resultsMonthCompare = useMemo(() => {
@@ -1008,6 +1004,9 @@ function Index() {
                         <tr key={m.key} className="border-t border-border/60">
                           <td className="py-2">
                             {m.label}
+                            {m.key === currentMonthKey && (
+                              <span className="ml-2 rounded-md bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent">Em andamento</span>
+                            )}
                             {bestMonth?.key === m.key && (
                               <span className="ml-2 rounded-md bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">melhor</span>
                             )}
@@ -1352,6 +1351,9 @@ function Index() {
                               <tr key={m.key} className="border-t border-border/60">
                                 <td className="py-2">
                                   {m.label}
+                                  {m.key === currentMonthKey && (
+                                    <span className="ml-2 rounded-md bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent">Em andamento</span>
+                                  )}
                                   {bestResultMonth?.key === m.key && (
                                     <span className="ml-2 rounded-md bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">melhor</span>
                                   )}
