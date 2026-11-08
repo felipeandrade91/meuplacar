@@ -916,11 +916,18 @@ function Index() {
               <StatCard label="G+A / jogo" value={stats.gaPerGame} small />
             </section>
 
-            {/* Recent vs overall */}
+            {/* Recent window, aligned with the totals above */}
             {recent && (
-              <section className="mb-8 grid grid-cols-2 gap-3">
-                <TrendCard label={`Gols (últ. ${recent.games})`} recent={recent.goalsRecent} all={recent.goalsAll} />
-                <TrendCard label={`Assist. (últ. ${recent.games})`} recent={recent.assistsRecent} all={recent.assistsAll} />
+              <section className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <RecentCard label="Gols" games={recent.games} total={recent.goals} recentAvg={recent.goalsRecent} periodAvg={recent.goalsAll} accent />
+                <RecentCard label="Assist." games={recent.games} total={recent.assists} recentAvg={recent.assistsRecent} periodAvg={recent.assistsAll} />
+                <RecentCard label="G+A" games={recent.games} total={recent.ga} recentAvg={recent.gaRecent} periodAvg={recent.gaAll} highlight />
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Jogos · últ. {recent.games}</p>
+                  <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">{recent.games}</p>
+                  <p className="mt-1 text-xs tabular-nums text-muted-foreground">de {recent.periodGames} no período</p>
+                  {recent.span && <p className="text-[10px] tabular-nums text-muted-foreground">{recent.span}</p>}
+                </div>
               </section>
             )}
 
@@ -1871,21 +1878,30 @@ function SequenceCard({ label, current, best, highlight }: { label: string; curr
   );
 }
 
-function TrendCard({ label, recent, all }: { label: string; recent: number; all: number }) {
-  const diff = recent - all;
+function RecentCard({
+  label, games, total, recentAvg, periodAvg, accent, highlight,
+}: {
+  label: string; games: number; total: number; recentAvg: number; periodAvg: number;
+  accent?: boolean; highlight?: boolean;
+}) {
+  const displayed = useCountUp(total);
+  const diff = recentAvg - periodAvg;
   const up = diff > 0.01;
   const down = diff < -0.01;
   return (
-    <div className="rounded-2xl border-2 border-border bg-card p-4">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="mt-1 flex items-baseline gap-2">
-        <p className="text-2xl font-bold tabular-nums text-foreground">{recent.toFixed(2)}</p>
-        <span className={`inline-flex items-center gap-0.5 text-xs ${up ? "text-primary" : down ? "text-destructive" : "text-muted-foreground"}`}>
+    <div className={`rounded-2xl border p-4 transition-colors ${highlight ? "border-primary/40 bg-primary/10" : "border-border bg-card"}`}>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label} · últ. {games}</p>
+      <p className={`mt-1 text-3xl font-bold tabular-nums ${accent || highlight ? "text-primary" : "text-foreground"}`}>
+        {Math.round(displayed).toLocaleString("pt-BR")}
+      </p>
+      <p className="mt-1 flex items-baseline gap-1.5 text-xs tabular-nums text-muted-foreground">
+        <span>{recentAvg.toFixed(2)}/jogo</span>
+        <span className={`inline-flex items-center gap-0.5 ${up ? "text-primary" : down ? "text-destructive" : ""}`}>
           {up ? <TrendingUp className="h-3 w-3" /> : down ? <TrendingDown className="h-3 w-3" /> : null}
           {diff >= 0 ? "+" : ""}{diff.toFixed(2)}
         </span>
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">média no período: {all.toFixed(2)}</p>
+      </p>
+      <p className="text-[10px] tabular-nums text-muted-foreground">média do período: {periodAvg.toFixed(2)}/jogo</p>
     </div>
   );
 }
