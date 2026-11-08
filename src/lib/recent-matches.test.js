@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { chronologicalMatches, latestFiveMatches, withRollingParticipation } from "./recent-matches";
+import { chronologicalMatches, lastFiveTotals, latestFiveMatches, withRollingParticipation } from "./recent-matches";
 
 const games = Array.from({ length: 7 }, (_, i) => ({
   id: String(i), date: `2026-10-${String(i + 1).padStart(2, "0")}`,

@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 import { Button } from "@/components/ui/button";
 import { MatchDatePicker } from "@/components/match-date-picker";
-import { chronologicalMatches, latestFiveMatches, withRollingParticipation } from "@/lib/recent-matches";
+import { chronologicalMatches, lastFiveTotals, latestFiveMatches, withRollingParticipation } from "@/lib/recent-matches";
 import { localMonthKey, rankCompletedMonths } from "@/lib/monthly-ranking";
 
 type MatchType = "quinta" | "pelada";
