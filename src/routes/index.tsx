@@ -904,6 +904,10 @@ function Index() {
               )}
             </div>
 
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <h2 className="text-lg font-semibold">Desempenho geral</h2>
+              <p className="text-xs text-muted-foreground">todos os jogos do período selecionado</p>
+            </div>
             <section className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatCard label="Gols" value={stats.goals} accent />
               <StatCard label="Assistências" value={stats.assists} />
@@ -918,15 +922,20 @@ function Index() {
 
             {/* Recent window, aligned with the totals above */}
             {recent && (
-              <section className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <RecentCard label="Gols" games={recent.games} total={recent.goals} recentAvg={recent.goalsRecent} periodAvg={recent.goalsAll} accent />
-                <RecentCard label="Assist." games={recent.games} total={recent.assists} recentAvg={recent.assistsRecent} periodAvg={recent.assistsAll} />
-                <RecentCard label="G+A" games={recent.games} total={recent.ga} recentAvg={recent.gaRecent} periodAvg={recent.gaAll} highlight />
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Jogos · últ. {recent.games}</p>
-                  <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">{recent.games}</p>
-                  <p className="mt-1 text-xs tabular-nums text-muted-foreground">de {recent.periodGames} no período</p>
-                  {recent.span && <p className="text-[10px] tabular-nums text-muted-foreground">{recent.span}</p>}
+              <section className="mb-8">
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <h2 className="text-lg font-semibold">
+                    Desempenho recente · últimos {recent.games} {recent.games === 1 ? "jogo" : "jogos"}
+                  </h2>
+                  <p className="text-xs tabular-nums text-muted-foreground">
+                    {recent.span ? `${recent.span} · ` : ""}
+                    {recent.games} de {recent.periodGames} no período
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <RecentCard label="Gols" total={recent.goals} recentAvg={recent.goalsRecent} periodAvg={recent.goalsAll} accent />
+                  <RecentCard label="Assist." total={recent.assists} recentAvg={recent.assistsRecent} periodAvg={recent.assistsAll} />
+                  <RecentCard label="G+A" total={recent.ga} recentAvg={recent.gaRecent} periodAvg={recent.gaAll} highlight className="col-span-2 sm:col-span-1" />
                 </div>
               </section>
             )}
@@ -1879,18 +1888,18 @@ function SequenceCard({ label, current, best, highlight }: { label: string; curr
 }
 
 function RecentCard({
-  label, games, total, recentAvg, periodAvg, accent, highlight,
+  label, total, recentAvg, periodAvg, accent, highlight, className = "",
 }: {
-  label: string; games: number; total: number; recentAvg: number; periodAvg: number;
-  accent?: boolean; highlight?: boolean;
+  label: string; total: number; recentAvg: number; periodAvg: number;
+  accent?: boolean; highlight?: boolean; className?: string;
 }) {
   const displayed = useCountUp(total);
   const diff = recentAvg - periodAvg;
   const up = diff > 0.01;
   const down = diff < -0.01;
   return (
-    <div className={`rounded-2xl border p-4 transition-colors ${highlight ? "border-primary/40 bg-primary/10" : "border-border bg-card"}`}>
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label} · últ. {games}</p>
+    <div className={`rounded-2xl border p-4 transition-colors ${highlight ? "border-primary/40 bg-primary/10" : "border-border bg-card"} ${className}`}>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className={`mt-1 text-3xl font-bold tabular-nums ${accent || highlight ? "text-primary" : "text-foreground"}`}>
         {Math.round(displayed).toLocaleString("pt-BR")}
       </p>
