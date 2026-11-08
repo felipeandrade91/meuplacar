@@ -352,14 +352,24 @@ function Index() {
     if (filteredMatches.length === 0) return null;
     const asc = chronologicalMatches(filteredMatches);
     const last5 = latestFiveMatches(filteredMatches);
-    const avg = (arr: Match[], key: "goals" | "assists") =>
-      arr.length ? arr.reduce((s, m) => s + m[key], 0) / arr.length : 0;
+    const avg = (arr: Match[], f: (m: Match) => number) =>
+      arr.length ? arr.reduce((s, m) => s + f(m), 0) / arr.length : 0;
+    const first = last5[0]?.date;
+    const last = last5[last5.length - 1]?.date;
+    const short = (iso: string) => {
+      const [, mo, d] = iso.split("-");
+      return `${d}/${mo}`;
+    };
     return {
-      games: last5.length,
-      goalsRecent: avg(last5, "goals"),
-      goalsAll: avg(asc, "goals"),
-      assistsRecent: avg(last5, "assists"),
-      assistsAll: avg(asc, "assists"),
+      ...lastFiveTotals(filteredMatches),
+      periodGames: asc.length,
+      span: first && last ? `${short(first)} – ${short(last)}` : "",
+      goalsRecent: avg(last5, (m) => m.goals),
+      goalsAll: avg(asc, (m) => m.goals),
+      assistsRecent: avg(last5, (m) => m.assists),
+      assistsAll: avg(asc, (m) => m.assists),
+      gaRecent: avg(last5, (m) => m.goals + m.assists),
+      gaAll: avg(asc, (m) => m.goals + m.assists),
     };
   }, [filteredMatches]);
 
