@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { chronologicalMatches, latestFiveMatches, withRollingParticipation } from "./recent-matches";
+import { chronologicalMatches, lastFiveTotals, latestFiveMatches, withRollingParticipation } from "./recent-matches";
 
 const games = Array.from({ length: 7 }, (_, i) => ({
   id: String(i), date: `2026-10-${String(i + 1).padStart(2, "0")}`,
@@ -34,5 +34,10 @@ describe("recent match windows", () => {
     expect(rolling[0].rolling).toBe(2);
     expect(rolling[1].rolling).toBe(2.5);
     expect(rolling[6].rolling).toBe(6);
+  });
+  test("últimos 5 somam gols, assistências e participações da janela", () => {
+    expect(lastFiveTotals(games)).toEqual({ games: 5, goals: 25, assists: 5, ga: 30 });
+    expect(lastFiveTotals(games.slice(0, 2))).toEqual({ games: 2, goals: 3, assists: 2, ga: 5 });
+    expect(lastFiveTotals([])).toEqual({ games: 0, goals: 0, assists: 0, ga: 0 });
   });
 });
