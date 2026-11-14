@@ -730,14 +730,17 @@ function Index() {
     assists: number,
     myScore: number | null,
     oppScore: number | null,
+    type: MatchType,
+    location: string,
   ) {
+    const safeLoc = location.trim() || null;
     const safeG = Math.max(0, Math.floor(goals) || 0);
     const safeA = Math.max(0, Math.floor(assists) || 0);
     const safeMy = myScore == null ? null : Math.max(0, Math.floor(myScore));
     const safeOpp = oppScore == null ? null : Math.max(0, Math.floor(oppScore));
     const prev = matches;
     setMatches((cur) => cur.map((m) => (m.id === id
-      ? { ...m, goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp }
+      ? { ...m, goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp, type, location: safeLoc ?? undefined }
       : m)));
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session?.user.id) {
@@ -748,6 +751,7 @@ function Index() {
     }
     const { error } = await supabase.from("matches").update({
       goals: safeG, assists: safeA, my_team_score: safeMy, opponent_score: safeOpp,
+      type, location: safeLoc,
     }).eq("id", id);
     if (error) { setMatches(prev); toast.error("Erro ao salvar"); return false; }
     toast.success("Jogo atualizado");
@@ -2199,6 +2203,7 @@ function MatchRow({
   onSave: (
     id: string, goals: number, assists: number,
     myScore: number | null, oppScore: number | null,
+    type: MatchType, location: string,
   ) => Promise<boolean>;
   onRequestRemove: () => void;
 }) {
@@ -2207,15 +2212,18 @@ function MatchRow({
   const [assists, setAssists] = useState(match.assists);
   const [myScore, setMyScore] = useState<string>(match.my_team_score?.toString() ?? "");
   const [oppScore, setOppScore] = useState<string>(match.opponent_score?.toString() ?? "");
+  const [type, setType] = useState<MatchType>(match.type);
+  const [location, setLocation] = useState(match.location ?? "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!editing) {
+      setType(match.type); setLocation(match.location ?? "");
       setGoals(match.goals); setAssists(match.assists);
       setMyScore(match.my_team_score?.toString() ?? "");
       setOppScore(match.opponent_score?.toString() ?? "");
     }
-  }, [match.goals, match.assists, match.my_team_score, match.opponent_score, editing]);
+  }, [match.goals, match.assists, match.my_team_score, match.opponent_score, match.type, match.location, editing]);
 
   async function handleSave() {
     setSaving(true);
@@ -2230,12 +2238,14 @@ function MatchRow({
       match.id, goals, assists,
       hasMy ? Number(myScore) : null,
       hasOpp ? Number(oppScore) : null,
+      type, location,
     );
     setSaving(false);
     if (ok) setEditing(false);
   }
 
   function handleCancel() {
+    setType(match.type); setLocation(match.location ?? "");
     setGoals(match.goals); setAssists(match.assists);
     setMyScore(match.my_team_score?.toString() ?? "");
     setOppScore(match.opponent_score?.toString() ?? "");
@@ -2263,7 +2273,24 @@ function MatchRow({
               </span>
             )}
           </div>
-          {match.location && (
+          {editing && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+              <select value={type} aria-label="Tipo de jogo"
+                onChange={(e) => {
+                  const t = e.target.value as MatchType;
+                  setType(t);
+                  if (t === "quinta" && !location.trim()) setLocation(QUINTA_LOCATION);
+                }}
+                className="rounded-md border-2 border-border bg-input/40 px-1 py-0.5 text-foreground outline-none focus:border-primary">
+                <option value="quinta">Futebol semanal</option>
+                <option value="pelada">Pelada eventual</option>
+              </select>
+              <input type="text" value={location} aria-label="Quadra" placeholder="Quadra"
+                onChange={(e) => setLocation(e.target.value)}
+                className="min-w-0 flex-1 rounded-md border-2 border-border bg-input/40 px-1.5 py-0.5 text-foreground outline-none focus:border-primary" />
+            </div>
+          )}
+          {!editing && match.location && (
             <p className="truncate text-[11px] leading-tight text-muted-foreground">{match.location}</p>
           )}
           {editing && (
